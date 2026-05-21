@@ -2,6 +2,8 @@
 
 A production-grade Rust web scraper framework — hybrid HTTP/headless rendering, recursive crawler, CSS + XPath extraction, live TUI, web dashboard, SQLite persistence, and a single self-contained binary.
 
+![rust-scraper TUI screenshot](screenshot.png)
+
 ## Architecture
 
 11-crate Cargo workspace with clear separation of concerns:

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="480" viewBox="0 0 780 480">
+<!-- Terminal chrome -->
+<rect width="780" height="480" fill="#0f1117" rx="10"/>
+<rect width="780" height="38" fill="#1a1d27" rx="10"/>
+<rect y="28" width="780" height="10" fill="#1a1d27"/>
+<circle cx="18" cy="19" r="6" fill="#ff5f57"/>
+<circle cx="38" cy="19" r="6" fill="#ffbd2e"/>
+<circle cx="58" cy="19" r="6" fill="#28c840"/>
+<text x="390" y="26" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="12" fill="#8892a4" text-anchor="middle">rust-scraper -- rscrape crawl --tui --dashboard 0.0.0.0:8080 https://news.ycombinator.com</text>
+
+<rect x="16.0" y="64" width="758.4" height="40" fill="#1a1d27" stroke="#6e8efb" stroke-width="1" rx="4"/>
+<text x="25.6" y="79" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="700" fill="#6e8efb"> Status </text>
+<text x="112.0" y="79" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#e2e8f0">rust-scraper  |  press q to quit</text>
+<text x="563.1999999999999" y="79" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#34d399">* live</text>
+<rect x="16.0" y="104" width="758.4" height="60" fill="#1a1d27" stroke="#2d3148" stroke-width="1" rx="4"/>
+<text x="25.6" y="119" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="700" fill="#8892a4"> Progress </text>
+<rect x="25.6" y="128" width="739.1999999999999" height="12" fill="#1a1d27" rx="3"/>
+<rect x="25.6" y="128" width="450.9119999999999" height="12" fill="#34d399" rx="3" opacity="0.85"/>
+<text x="304.0" y="139" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="700" fill="#e2e8f0">1,220 / 2,000 done  (61%)</text>
+<rect x="16.0" y="164" width="758.4" height="280" fill="#1a1d27" stroke="#2d3148" stroke-width="1" rx="4"/>
+<text x="25.6" y="179" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="700" fill="#8892a4"> Metrics </text>
+<rect x="25.6" y="184" width="739.1999999999999" height="20" fill="#2d3148" stroke="none" stroke-width="1" rx="0"/>
+<text x="35.2" y="199" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="700" fill="#6e8efb">Metric</text>
+<text x="227.2" y="199" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="700" fill="#6e8efb">Value</text>
+<text x="35.2" y="219" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">Pending</text>
+<text x="227.2" y="219" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#e2e8f0">780</text>
+<text x="35.2" y="239" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">In Progress</text>
+<text x="227.2" y="239" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#67e8f9">8</text>
+<text x="35.2" y="259" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">Done</text>
+<text x="227.2" y="259" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#34d399">1,220</text>
+<text x="35.2" y="279" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">Failed</text>
+<text x="227.2" y="279" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#f87171">12</text>
+<text x="35.2" y="299" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">Skipped</text>
+<text x="227.2" y="299" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">0</text>
+<text x="35.2" y="319" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">Bytes</text>
+<text x="227.2" y="319" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#e2e8f0">14.7 MB</text>
+<text x="35.2" y="339" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">Req/s</text>
+<text x="227.2" y="339" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#fbbf24">1.9</text>
+<text x="35.2" y="359" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#8892a4">Workers</text>
+<text x="227.2" y="359" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#e2e8f0">8</text>
+<rect x="16.0" y="444" width="758.4" height="100" fill="#1a1d27" stroke="#2d3148" stroke-width="1" rx="4"/>
+<text x="25.6" y="459" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="700" fill="#8892a4"> Recent Events </text>
+<text x="35.2" y="479" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#34d399">[OK]  https://news.ycombinator.com/item?id=41234567   200  312ms</text>
+<text x="35.2" y="499" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#34d399">[OK]  https://news.ycombinator.com/item?id=41234523   200  287ms</text>
+<text x="35.2" y="519" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#fbbf24">[!!]  rate limited: news.ycombinator.com -- waiting 500ms</text>
+<text x="35.2" y="539" font-family="JetBrains Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" fill="#34d399">[OK]  https://news.ycombinator.com/user?id=pg          200  198ms</text>
+</svg>
