@@ -98,20 +98,19 @@ impl Coordinator {
                 // Worker result arrived.
                 Some(result) = result_rx.recv() => {
                     self.handle_result(result, &job_tx, &mut in_flight, &mut seen).await?;
-                }
-                // External shutdown signal.
-                Ok(ScrapeEvent::Shutdown) = shutdown_rx.recv() => {
-                    info!("shutdown signal received — stopping coordinator");
-                    job_tx.close(); // signals all workers to stop via Err(RecvError)
-                    break;
-                }
-                // All workers done and no pending URLs.
-                else => {
+                    // Check after every result: if nothing is in-flight, all
+                    // dispatched work has returned and no new jobs were queued.
                     if in_flight.is_empty() {
                         info!("crawl complete — all URLs processed");
                         job_tx.close();
                         break;
                     }
+                }
+                // External shutdown signal.
+                Ok(ScrapeEvent::Shutdown) = shutdown_rx.recv() => {
+                    info!("shutdown signal received — stopping coordinator");
+                    job_tx.close();
+                    break;
                 }
             }
         }

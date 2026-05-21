@@ -15,3 +15,8 @@ async-channel = { workspace = true }
 tracing = { workspace = true }
 bytes = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+scraper-storage = { path = "../scraper-storage" }
+scraper-fetch-http = { path = "../scraper-fetch-http" }
+axum = "0.7"
