@@ -27,7 +27,26 @@ pub struct Coordinator {
     pub selector: Arc<dyn SelectorEngine>,
     pub metrics: MetricsHub,
     pub max_depth: u32,
+    pub allowed_domains: Vec<String>,
     pub concurrency: usize,
+}
+
+/// Returns true if `url`'s host is permitted by the domain allowlist.
+///
+/// An empty allowlist means "allow everything". A non-empty list allows a URL
+/// whose host exactly matches an entry OR is a subdomain of one
+/// (e.g. "blog.example.com" passes when "example.com" is in the list).
+fn is_allowed_host(url: &Url, allowed: &[String]) -> bool {
+    if allowed.is_empty() {
+        return true;
+    }
+    let host = url.host();
+    if host.is_empty() {
+        return false;
+    }
+    allowed
+        .iter()
+        .any(|d| host == *d || host.ends_with(&format!(".{d}")))
 }
 
 impl Coordinator {
@@ -166,9 +185,12 @@ impl Coordinator {
                     warn!("sink write error: {e}");
                 }
 
-                // Enqueue newly discovered links.
+                // Enqueue newly discovered links that pass depth + domain filters.
                 if data.depth < self.max_depth {
                     for link in extracted.discovered_links {
+                        if !is_allowed_host(&link, &self.allowed_domains) {
+                            continue;
+                        }
                         let key = link.as_str().to_string();
                         if seen.insert(key) {
                             match self
@@ -222,5 +244,55 @@ impl Coordinator {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn url(s: &str) -> Url {
+        Url::parse(s).unwrap()
+    }
+
+    #[test]
+    fn empty_allowlist_permits_everything() {
+        assert!(is_allowed_host(&url("https://example.com/page"), &[]));
+        assert!(is_allowed_host(&url("https://other.org/"), &[]));
+    }
+
+    #[test]
+    fn exact_domain_match() {
+        let allowed = vec!["example.com".into()];
+        assert!(is_allowed_host(&url("https://example.com/page"), &allowed));
+        assert!(!is_allowed_host(&url("https://other.org/page"), &allowed));
+    }
+
+    #[test]
+    fn subdomain_is_permitted() {
+        let allowed = vec!["example.com".into()];
+        assert!(is_allowed_host(
+            &url("https://blog.example.com/post"),
+            &allowed
+        ));
+        assert!(is_allowed_host(
+            &url("https://a.b.example.com/deep"),
+            &allowed
+        ));
+    }
+
+    #[test]
+    fn lookalike_domain_is_rejected() {
+        let allowed = vec!["example.com".into()];
+        // "notexample.com" ends with "example.com" as a string but is not a subdomain.
+        assert!(!is_allowed_host(&url("https://notexample.com/"), &allowed));
+    }
+
+    #[test]
+    fn multiple_allowed_domains() {
+        let allowed = vec!["example.com".into(), "docs.rs".into()];
+        assert!(is_allowed_host(&url("https://example.com/"), &allowed));
+        assert!(is_allowed_host(&url("https://api.docs.rs/"), &allowed));
+        assert!(!is_allowed_host(&url("https://evil.com/"), &allowed));
     }
 }

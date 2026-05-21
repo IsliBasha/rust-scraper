@@ -14,6 +14,7 @@ pub struct Engine {
     pub sink: Arc<dyn ResultSink>,
     pub metrics: MetricsHub,
     pub max_depth: u32,
+    pub allowed_domains: Vec<String>,
     pub concurrency: usize,
 }
 
@@ -22,6 +23,7 @@ impl Engine {
         info!(
             concurrency = self.concurrency,
             max_depth = self.max_depth,
+            allowed_domains = ?self.allowed_domains,
             "engine starting"
         );
         let shutdown_rx = self.metrics.subscribe_events();
@@ -32,6 +34,7 @@ impl Engine {
             selector: Arc::clone(&self.selector),
             metrics: self.metrics.clone(),
             max_depth: self.max_depth,
+            allowed_domains: self.allowed_domains,
             concurrency: self.concurrency,
         };
 

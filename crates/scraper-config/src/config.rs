@@ -9,6 +9,9 @@ pub struct CrawlConfig {
     pub seeds: Vec<String>,
     /// Maximum crawl depth (0 = seed URLs only).
     pub max_depth: u32,
+    /// Restrict crawling to these hostnames and their subdomains.
+    /// Empty list means no restriction (follow all discovered links).
+    pub allowed_domains: Vec<String>,
     /// Maximum concurrent worker tasks.
     pub concurrency: usize,
     /// Global crawl timeout.
@@ -25,6 +28,7 @@ impl Default for CrawlConfig {
         Self {
             seeds: Vec::new(),
             max_depth: 3,
+            allowed_domains: Vec::new(),
             concurrency: 8,
             timeout: Duration::from_secs(300),
             rate_limit: RateLimitConfig::default(),

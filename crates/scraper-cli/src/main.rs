@@ -109,6 +109,7 @@ async fn main() -> anyhow::Result<()> {
                 sink,
                 metrics,
                 max_depth: cfg.max_depth,
+                allowed_domains: cfg.allowed_domains.clone(),
                 concurrency: cfg.concurrency,
             };
 
