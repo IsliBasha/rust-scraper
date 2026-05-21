@@ -3,10 +3,52 @@ use bytes::{Bytes, BytesMut};
 use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use scraper_core::{CrawlError, CrawlJob, FetchResponse, Fetcher, Url};
+use std::net::IpAddr;
 use std::time::Instant;
 use tracing::{debug, warn};
 
 use crate::rate_limiter::PerHostRateLimiter;
+
+/// Returns true for any IP that must never be a redirect target.
+/// Covers RFC-1918 private ranges, loopback, link-local (169.254/16 — cloud metadata
+/// endpoints), broadcast, and unspecified; plus IPv6 loopback, unique-local, link-local.
+fn is_private_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            v4.is_private()       // 10/8, 172.16/12, 192.168/16
+                || v4.is_loopback()   // 127/8
+                || v4.is_link_local() // 169.254/16 — AWS/GCP/Azure metadata
+                || v4.is_broadcast()  // 255.255.255.255
+                || v4.is_unspecified() // 0.0.0.0
+        }
+        IpAddr::V6(v6) => {
+            v6.is_loopback()       // ::1
+                || v6.is_unspecified() // ::
+                || (v6.segments()[0] & 0xfe00) == 0xfc00 // fc00::/7 unique-local
+                || (v6.segments()[0] & 0xffc0) == 0xfe80 // fe80::/10 link-local
+        }
+    }
+}
+
+/// Redirect policy that enforces a 10-hop limit and rejects redirects to
+/// private/loopback addresses to prevent SSRF attacks via server-side redirects.
+fn ssrf_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            return attempt.error(CrawlError::network("too many redirects"));
+        }
+        if let Some(host) = attempt.url().host_str() {
+            if let Ok(ip) = host.parse::<IpAddr>() {
+                if is_private_ip(ip) {
+                    return attempt.error(CrawlError::network(format!(
+                        "SSRF guard: redirect to private address blocked ({ip})"
+                    )));
+                }
+            }
+        }
+        attempt.follow()
+    })
+}
 
 /// HTTP fetcher backed by `reqwest`, with per-host governor rate limiting.
 pub struct HttpFetcher {
@@ -27,7 +69,7 @@ impl HttpFetcher {
             .brotli(true)
             .deflate(true)
             .timeout(std::time::Duration::from_secs(30))
-            .redirect(reqwest::redirect::Policy::limited(10))
+            .redirect(ssrf_redirect_policy())
             .build()
             .map_err(|e| CrawlError::network(e.to_string()))?;
 
@@ -113,5 +155,17 @@ mod tests {
     #[test]
     fn fetcher_builds_without_error() {
         HttpFetcher::new(2.0, 5, 10 * 1024 * 1024).unwrap();
+    }
+
+    #[test]
+    fn ssrf_guard_blocks_private_ips() {
+        assert!(is_private_ip("10.0.0.1".parse().unwrap()));
+        assert!(is_private_ip("172.16.0.1".parse().unwrap()));
+        assert!(is_private_ip("192.168.1.1".parse().unwrap()));
+        assert!(is_private_ip("127.0.0.1".parse().unwrap()));
+        assert!(is_private_ip("169.254.169.254".parse().unwrap())); // AWS metadata
+        assert!(is_private_ip("0.0.0.0".parse().unwrap()));
+        assert!(!is_private_ip("8.8.8.8".parse().unwrap()));
+        assert!(!is_private_ip("93.184.216.34".parse().unwrap()));
     }
 }
