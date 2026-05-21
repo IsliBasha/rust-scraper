@@ -82,7 +82,7 @@ path = "results.db"
 cargo test --workspace
 ```
 
-27 tests across 6 crates, all passing.
+33 tests across 7 crates, all passing (includes 3 integration tests).
 
 ## Binary Size
 
