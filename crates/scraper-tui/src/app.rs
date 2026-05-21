@@ -16,7 +16,9 @@ impl TuiApp {
         use crossterm::{
             event::{self, Event, KeyCode},
             execute,
-            terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+            terminal::{
+                disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+            },
         };
         use ratatui::{backend::CrosstermBackend, Terminal};
         use std::io;

@@ -15,8 +15,9 @@ pub struct Url(String);
 
 impl Url {
     pub fn parse(raw: &str) -> Result<Self, CrawlError> {
-        let parsed = url::Url::parse(raw)
-            .map_err(|e| CrawlError::InvalidUrl { message: e.to_string() })?;
+        let parsed = url::Url::parse(raw).map_err(|e| CrawlError::InvalidUrl {
+            message: e.to_string(),
+        })?;
         if !matches!(parsed.scheme(), "http" | "https") {
             return Err(CrawlError::InvalidUrl {
                 message: format!("unsupported scheme: {}", parsed.scheme()),
@@ -41,7 +42,9 @@ impl Url {
     pub fn join(&self, path: &str) -> Result<Self, CrawlError> {
         self.parsed()
             .join(path)
-            .map_err(|e| CrawlError::InvalidUrl { message: e.to_string() })
+            .map_err(|e| CrawlError::InvalidUrl {
+                message: e.to_string(),
+            })
             .and_then(|u| Self::parse(u.as_str()))
     }
 }

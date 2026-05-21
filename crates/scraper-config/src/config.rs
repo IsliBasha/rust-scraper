@@ -87,8 +87,12 @@ pub struct RuleSet {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OutputConfig {
-    JsonLines { path: String },
-    Sqlite { path: String },
+    JsonLines {
+        path: String,
+    },
+    Sqlite {
+        path: String,
+    },
     #[default]
     Stdout,
 }

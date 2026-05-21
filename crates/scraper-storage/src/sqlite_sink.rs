@@ -12,8 +12,11 @@ impl SqliteResultSink {
         let conn = Connection::open(path).map_err(|e| CrawlError::storage(e.to_string()))?;
         conn.pragma_update(None, "journal_mode", "WAL")
             .map_err(|e| CrawlError::storage(e.to_string()))?;
-        conn.execute_batch(SCHEMA).map_err(|e| CrawlError::storage(e.to_string()))?;
-        Ok(Self { conn: Mutex::new(conn) })
+        conn.execute_batch(SCHEMA)
+            .map_err(|e| CrawlError::storage(e.to_string()))?;
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn open_memory() -> Result<Self, CrawlError> {
@@ -33,8 +36,8 @@ CREATE TABLE IF NOT EXISTS results (
 #[async_trait]
 impl ResultSink for SqliteResultSink {
     async fn write(&self, data: &ExtractedData) -> Result<(), CrawlError> {
-        let fields_json = serde_json::to_string(&data.fields)
-            .map_err(|e| CrawlError::storage(e.to_string()))?;
+        let fields_json =
+            serde_json::to_string(&data.fields).map_err(|e| CrawlError::storage(e.to_string()))?;
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT INTO results (url, fields) VALUES (?1, ?2)",

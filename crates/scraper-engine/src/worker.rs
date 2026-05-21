@@ -55,7 +55,11 @@ pub async fn run_worker(
                 };
 
                 if result_tx
-                    .send(WorkerResult { job_id: id, url, outcome })
+                    .send(WorkerResult {
+                        job_id: id,
+                        url,
+                        outcome,
+                    })
                     .await
                     .is_err()
                 {

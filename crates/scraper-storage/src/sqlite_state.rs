@@ -19,8 +19,11 @@ impl SqliteStateStore {
             .map_err(|e| CrawlError::storage(e.to_string()))?;
         conn.pragma_update(None, "synchronous", "NORMAL")
             .map_err(|e| CrawlError::storage(e.to_string()))?;
-        conn.execute_batch(SCHEMA).map_err(|e| CrawlError::storage(e.to_string()))?;
-        Ok(Self { conn: Mutex::new(conn) })
+        conn.execute_batch(SCHEMA)
+            .map_err(|e| CrawlError::storage(e.to_string()))?;
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn open_memory() -> Result<Self, CrawlError> {
@@ -69,7 +72,14 @@ impl StateStore for SqliteStateStore {
                 row.map_err(|e| CrawlError::storage(e.to_string()))?;
             let url = Url::parse(&url_str)?;
             let status = parse_status(&status_str)?;
-            out.push(PersistedUrl { id, url, depth, parent, status, attempt });
+            out.push(PersistedUrl {
+                id,
+                url,
+                depth,
+                parent,
+                status,
+                attempt,
+            });
         }
         Ok(out)
     }

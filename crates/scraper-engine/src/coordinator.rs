@@ -112,8 +112,9 @@ impl Coordinator {
         self.state.set_status(id, UrlStatus::InProgress).await?;
         self.metrics.inc_in_progress();
         self.metrics.dec_pending();
-        self.metrics
-            .emit(ScrapeEvent::UrlStarted { url: url.as_str().to_string() });
+        self.metrics.emit(ScrapeEvent::UrlStarted {
+            url: url.as_str().to_string(),
+        });
 
         in_flight.insert(id);
         job_tx
@@ -153,8 +154,7 @@ impl Coordinator {
                 });
 
                 // Run selector extraction.
-                let extracted =
-                    self.selector.extract(&data.html, &data.url, &data.rules)?;
+                let extracted = self.selector.extract(&data.html, &data.url, &data.rules)?;
 
                 // Persist extracted data.
                 let extracted_data = ExtractedData {
@@ -171,7 +171,11 @@ impl Coordinator {
                     for link in extracted.discovered_links {
                         let key = link.as_str().to_string();
                         if seen.insert(key) {
-                            match self.state.enqueue(&link, data.depth + 1, Some(result.job_id)).await {
+                            match self
+                                .state
+                                .enqueue(&link, data.depth + 1, Some(result.job_id))
+                                .await
+                            {
                                 Ok(new_id) => {
                                     self.metrics.inc_pending(1);
                                     self.metrics.emit(ScrapeEvent::UrlDiscovered {
@@ -180,7 +184,13 @@ impl Coordinator {
                                     });
                                     if in_flight.len() < self.concurrency {
                                         if let Err(e) = self
-                                            .dispatch(job_tx, in_flight, &link, new_id, data.depth + 1)
+                                            .dispatch(
+                                                job_tx,
+                                                in_flight,
+                                                &link,
+                                                new_id,
+                                                data.depth + 1,
+                                            )
                                             .await
                                         {
                                             debug!("dispatch error: {e}");
@@ -195,7 +205,9 @@ impl Coordinator {
             }
             Err(e) => {
                 let retryable = e.is_retryable();
-                self.state.mark_failed(result.job_id, &e.to_string(), retryable).await?;
+                self.state
+                    .mark_failed(result.job_id, &e.to_string(), retryable)
+                    .await?;
                 if retryable {
                     self.metrics.inc_pending(1);
                 } else {

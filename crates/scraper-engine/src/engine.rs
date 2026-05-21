@@ -19,7 +19,11 @@ pub struct Engine {
 
 impl Engine {
     pub async fn run(self) -> Result<(), CrawlError> {
-        info!(concurrency = self.concurrency, max_depth = self.max_depth, "engine starting");
+        info!(
+            concurrency = self.concurrency,
+            max_depth = self.max_depth,
+            "engine starting"
+        );
         let shutdown_rx = self.metrics.subscribe_events();
 
         let coordinator = Coordinator {

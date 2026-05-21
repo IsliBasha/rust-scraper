@@ -97,15 +97,16 @@ impl Fetcher for HttpFetcher {
             .await
             .map_err(|e| {
                 if e.is_timeout() {
-                    CrawlError::Timeout { elapsed_ms: start.elapsed().as_millis() as u64 }
+                    CrawlError::Timeout {
+                        elapsed_ms: start.elapsed().as_millis() as u64,
+                    }
                 } else {
                     CrawlError::network(e.to_string())
                 }
             })?;
 
         let status = response.status();
-        let final_url = Url::parse(response.url().as_str())
-            .unwrap_or_else(|_| job.url.clone());
+        let final_url = Url::parse(response.url().as_str()).unwrap_or_else(|_| job.url.clone());
 
         if status == StatusCode::TOO_MANY_REQUESTS {
             return Err(CrawlError::RateLimited { host });
@@ -113,7 +114,9 @@ impl Fetcher for HttpFetcher {
 
         if !status.is_success() && !status.is_redirection() {
             warn!(url = %job.url, status = status.as_u16(), "non-success status");
-            return Err(CrawlError::HttpStatus { status: status.as_u16() });
+            return Err(CrawlError::HttpStatus {
+                status: status.as_u16(),
+            });
         }
 
         // Stream the body and stop reading once max_response_bytes is reached.

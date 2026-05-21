@@ -101,7 +101,9 @@ mod tests {
             attr: None,
             many: false,
         }];
-        let result = engine.extract(html, &url("https://example.com"), &rules).unwrap();
+        let result = engine
+            .extract(html, &url("https://example.com"), &rules)
+            .unwrap();
         assert_eq!(result.fields["title"], Value::String("Hello".into()));
     }
 
@@ -115,7 +117,9 @@ mod tests {
             attr: Some("href".into()),
             many: false,
         }];
-        let result = engine.extract(html, &url("https://example.com"), &rules).unwrap();
+        let result = engine
+            .extract(html, &url("https://example.com"), &rules)
+            .unwrap();
         assert_eq!(
             result.fields["link"],
             Value::String("https://example.com/page".into())
@@ -132,7 +136,9 @@ mod tests {
             attr: None,
             many: true,
         }];
-        let result = engine.extract(html, &url("https://example.com"), &rules).unwrap();
+        let result = engine
+            .extract(html, &url("https://example.com"), &rules)
+            .unwrap();
         assert_eq!(
             result.fields["items"],
             Value::Array(vec![
@@ -150,7 +156,9 @@ mod tests {
             <a href="/about">About</a>
             <a href="https://other.com">External</a>
         </body></html>"#;
-        let result = engine.extract(html, &url("https://example.com"), &[]).unwrap();
+        let result = engine
+            .extract(html, &url("https://example.com"), &[])
+            .unwrap();
         assert_eq!(result.discovered_links.len(), 2);
         assert!(result
             .discovered_links
@@ -168,7 +176,9 @@ mod tests {
             attr: None,
             many: false,
         }];
-        let result = engine.extract(html, &url("https://example.com"), &rules).unwrap();
+        let result = engine
+            .extract(html, &url("https://example.com"), &rules)
+            .unwrap();
         assert_eq!(result.fields["missing"], Value::Null);
     }
 

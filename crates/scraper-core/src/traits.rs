@@ -19,11 +19,7 @@ pub trait Fetcher: Send + Sync {
 /// Renders a URL using a headless browser; returns the post-JS-execution DOM as HTML bytes.
 #[async_trait]
 pub trait BrowserBackend: Send + Sync {
-    async fn render(
-        &self,
-        url: &Url,
-        opts: &RenderOptions,
-    ) -> Result<FetchResponse, CrawlError>;
+    async fn render(&self, url: &Url, opts: &RenderOptions) -> Result<FetchResponse, CrawlError>;
 
     /// Gracefully shut down the browser process. Called once on engine shutdown.
     async fn shutdown(&self) -> Result<(), CrawlError>;
@@ -63,12 +59,7 @@ pub trait StateStore: Send + Sync {
     async fn mark_done(&self, id: UrlId) -> Result<(), CrawlError>;
 
     /// Mark a URL as failed. `retryable` controls whether the coordinator may re-enqueue it.
-    async fn mark_failed(
-        &self,
-        id: UrlId,
-        error: &str,
-        retryable: bool,
-    ) -> Result<(), CrawlError>;
+    async fn mark_failed(&self, id: UrlId, error: &str, retryable: bool) -> Result<(), CrawlError>;
 
     /// Crash-recovery: reset any rows stuck InProgress back to Pending.
     async fn reclaim_in_flight(&self) -> Result<u64, CrawlError>;

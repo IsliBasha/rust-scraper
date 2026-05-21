@@ -37,14 +37,18 @@ enum Cmd {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .init();
+    fmt().with_env_filter(EnvFilter::from_default_env()).init();
 
     let cli = Cli::parse();
 
     match cli.cmd {
-        Cmd::Crawl { config, dashboard, tui, db, seeds } => {
+        Cmd::Crawl {
+            config,
+            dashboard,
+            tui,
+            db,
+            seeds,
+        } => {
             let mut cfg = load(config.as_deref()).context("failed to load config")?;
             if !seeds.is_empty() {
                 cfg.seeds = seeds;
@@ -52,12 +56,10 @@ async fn main() -> anyhow::Result<()> {
             anyhow::ensure!(!cfg.seeds.is_empty(), "no seed URLs provided");
 
             let db_path = db.to_string_lossy().into_owned();
-            let state = Arc::new(
-                SqliteStateStore::open(&db_path).context("failed to open state DB")?,
-            );
-            let sink = Arc::new(
-                SqliteResultSink::open(&db_path).context("failed to open results DB")?,
-            );
+            let state =
+                Arc::new(SqliteStateStore::open(&db_path).context("failed to open state DB")?);
+            let sink =
+                Arc::new(SqliteResultSink::open(&db_path).context("failed to open results DB")?);
 
             for seed in &cfg.seeds {
                 let url = scraper_core::Url::parse(seed)

@@ -8,7 +8,9 @@ pub struct StubBrowser;
 #[async_trait]
 impl BrowserBackend for StubBrowser {
     async fn render(&self, _url: &Url, _opts: &RenderOptions) -> Result<FetchResponse, CrawlError> {
-        Err(CrawlError::browser("browser backend not enabled — recompile with feature 'chromium'"))
+        Err(CrawlError::browser(
+            "browser backend not enabled — recompile with feature 'chromium'",
+        ))
     }
 
     async fn shutdown(&self) -> Result<(), CrawlError> {

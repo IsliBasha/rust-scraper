@@ -125,7 +125,9 @@ impl MetricsHub {
     }
 
     pub fn set_active_workers(&self, n: u32) {
-        self.counters.active_workers.store(n as u64, Ordering::Relaxed);
+        self.counters
+            .active_workers
+            .store(n as u64, Ordering::Relaxed);
     }
 
     // --- Event broadcasting ---

@@ -1,5 +1,5 @@
 pub mod coordinator;
-pub mod worker;
 pub mod engine;
+pub mod worker;
 
 pub use engine::Engine;

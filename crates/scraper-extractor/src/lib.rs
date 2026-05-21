@@ -41,12 +41,16 @@ impl SelectorEngine for CompositeEngine {
         base_url: &Url,
         rules: &[ExtractionRule],
     ) -> Result<ExtractedData, CrawlError> {
-        let css_rules: Vec<&ExtractionRule> =
-            rules.iter().filter(|r| self.css.supports(&r.selector)).collect();
+        let css_rules: Vec<&ExtractionRule> = rules
+            .iter()
+            .filter(|r| self.css.supports(&r.selector))
+            .collect();
 
         #[cfg(feature = "xpath")]
-        let xpath_rules: Vec<&ExtractionRule> =
-            rules.iter().filter(|r| self.xpath.supports(&r.selector)).collect();
+        let xpath_rules: Vec<&ExtractionRule> = rules
+            .iter()
+            .filter(|r| self.xpath.supports(&r.selector))
+            .collect();
 
         let mut merged = BTreeMap::new();
         let mut links = Vec::new();

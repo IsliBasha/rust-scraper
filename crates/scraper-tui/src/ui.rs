@@ -18,12 +18,20 @@ pub fn draw(f: &mut Frame, snap: &MetricsSnapshot) {
         .split(f.area());
 
     let header = Paragraph::new("rust-scraper — press q to quit")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL).title(" Status "));
     f.render_widget(header, chunks[0]);
 
     let total = snap.urls_done + snap.urls_failed + snap.urls_pending + snap.urls_in_progress;
-    let ratio = if total == 0 { 0.0 } else { snap.urls_done as f64 / total as f64 };
+    let ratio = if total == 0 {
+        0.0
+    } else {
+        snap.urls_done as f64 / total as f64
+    };
     let label = format!("{}/{} done", snap.urls_done, total);
     let gauge = Gauge::default()
         .block(Block::default().borders(Borders::ALL).title(" Progress "))

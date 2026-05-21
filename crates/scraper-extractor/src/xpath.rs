@@ -24,9 +24,8 @@ impl SelectorEngine for XPathEngine {
                 continue;
             };
 
-            let xp = xpath::parse(expr).map_err(|e| {
-                CrawlError::extraction(format!("invalid XPath '{expr}': {e}"))
-            })?;
+            let xp = xpath::parse(expr)
+                .map_err(|e| CrawlError::extraction(format!("invalid XPath '{expr}': {e}")))?;
 
             let nodes = xp.apply(&document).map_err(|e| {
                 CrawlError::extraction(format!("XPath eval error for '{expr}': {e}"))
@@ -81,7 +80,9 @@ mod tests {
             attr: None,
             many: false,
         }];
-        let result = engine.extract(html, &url("https://example.com"), &rules).unwrap();
+        let result = engine
+            .extract(html, &url("https://example.com"), &rules)
+            .unwrap();
         let title = result.fields["title"].as_str().unwrap();
         assert!(title.contains("Hello XPath"), "got: {title}");
     }
@@ -96,7 +97,9 @@ mod tests {
             attr: None,
             many: true,
         }];
-        let result = engine.extract(html, &url("https://example.com"), &rules).unwrap();
+        let result = engine
+            .extract(html, &url("https://example.com"), &rules)
+            .unwrap();
         assert!(result.fields["items"].is_array());
         assert_eq!(result.fields["items"].as_array().unwrap().len(), 2);
     }
@@ -111,7 +114,11 @@ mod tests {
             many: false,
         }];
         let result = engine
-            .extract("<html><body></body></html>", &url("https://example.com"), &rules)
+            .extract(
+                "<html><body></body></html>",
+                &url("https://example.com"),
+                &rules,
+            )
             .unwrap();
         assert_eq!(result.fields["nothing"], Value::Null);
     }
