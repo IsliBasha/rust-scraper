@@ -1,0 +1,15 @@
+[package]
+name = "scraper-extractor"
+version = "0.1.0"
+edition = "2021"
+description = "CSS and XPath extraction engine behind the SelectorEngine trait"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+serde_json = { workspace = true }
+scraper = "0.22"
+skyscraper = { version = "0.4", optional = true }
+
+[features]
+default = ["xpath"]
+xpath = ["dep:skyscraper"]

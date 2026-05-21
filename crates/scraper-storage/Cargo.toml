@@ -1,0 +1,14 @@
+[package]
+name = "scraper-storage"
+version = "0.1.0"
+edition = "2021"
+description = "SQLite-backed StateStore and ResultSink implementations"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+rusqlite = { version = "0.31", features = ["bundled"] }
+async-trait = { workspace = true }

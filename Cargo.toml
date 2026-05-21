@@ -1,0 +1,36 @@
+[workspace]
+members = [
+    "crates/scraper-core",
+    "crates/scraper-extractor",
+    "crates/scraper-config",
+    "crates/scraper-metrics",
+    "crates/scraper-fetch-http",
+    "crates/scraper-browser",
+    "crates/scraper-storage",
+    "crates/scraper-engine",
+    "crates/scraper-tui",
+    "crates/scraper-dashboard",
+    "crates/scraper-cli",
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "1"
+async-trait = "0.1"
+bytes = "1"
+http = "1"
+url = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+humantime = "2"
+humantime-serde = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

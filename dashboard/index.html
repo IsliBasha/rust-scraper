@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rust-scraper dashboard</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2d3148;
+      --accent: #6e8efb;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace, sans-serif; padding: 2rem; }
+    h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 1.5rem; letter-spacing: 0.05em; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+    .card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+    .card .value { font-size: 2rem; font-weight: 700; margin-top: 0.5rem; }
+    .card.done .value { color: var(--green); }
+    .card.failed .value { color: var(--red); }
+    .card.rps .value { color: var(--yellow); }
+    #status { margin-top: 1rem; font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>rust-scraper</h1>
+  <div class="grid" id="grid">
+    <div class="card"><div class="label">Pending</div><div class="value" id="pending">—</div></div>
+    <div class="card"><div class="label">In Progress</div><div class="value" id="in_progress">—</div></div>
+    <div class="card done"><div class="label">Done</div><div class="value" id="done">—</div></div>
+    <div class="card failed"><div class="label">Failed</div><div class="value" id="failed">—</div></div>
+    <div class="card"><div class="label">Bytes</div><div class="value" id="bytes">—</div></div>
+    <div class="card rps"><div class="label">Req/s</div><div class="value" id="rps">—</div></div>
+    <div class="card"><div class="label">Workers</div><div class="value" id="workers">—</div></div>
+  </div>
+  <div id="status">connecting…</div>
+
+  <script>
+    const ids = ["pending","in_progress","done","failed","bytes","rps","workers"];
+    const $ = id => document.getElementById(id);
+
+    function fmtBytes(b) {
+      if (b < 1024) return b + " B";
+      if (b < 1024*1024) return (b/1024).toFixed(1) + " KB";
+      return (b/(1024*1024)).toFixed(1) + " MB";
+    }
+
+    const src = new EventSource("/api/metrics/stream");
+    src.addEventListener("metrics", e => {
+      const d = JSON.parse(e.data);
+      $("pending").textContent     = d.pending    ?? "—";
+      $("in_progress").textContent = d.in_progress ?? "—";
+      $("done").textContent        = d.done        ?? "—";
+      $("failed").textContent      = d.failed      ?? "—";
+      $("bytes").textContent       = fmtBytes(d.bytes ?? 0);
+      $("rps").textContent         = (d.rps ?? 0).toFixed(1);
+      $("workers").textContent     = d.workers     ?? "—";
+      $("status").textContent      = "live ● " + new Date().toLocaleTimeString();
+    });
+    src.onerror = () => $("status").textContent = "reconnecting…";
+  </script>
+</body>
+</html>

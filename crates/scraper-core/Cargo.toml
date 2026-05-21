@@ -1,0 +1,14 @@
+[package]
+name = "scraper-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core domain types and trait definitions for the Rust scraper framework"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+http = { workspace = true }
+url = { workspace = true }

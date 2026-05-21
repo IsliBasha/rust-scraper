@@ -1,0 +1,26 @@
+[package]
+name = "scraper-cli"
+version = "0.1.0"
+edition = "2021"
+description = "CLI binary — wires together all crates into the `rscrape` command"
+
+[[bin]]
+name = "rscrape"
+path = "src/main.rs"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+scraper-config = { path = "../scraper-config" }
+scraper-metrics = { path = "../scraper-metrics" }
+scraper-extractor = { path = "../scraper-extractor" }
+scraper-storage = { path = "../scraper-storage" }
+scraper-fetch-http = { path = "../scraper-fetch-http" }
+scraper-browser = { path = "../scraper-browser" }
+scraper-engine = { path = "../scraper-engine" }
+scraper-tui = { path = "../scraper-tui" }
+scraper-dashboard = { path = "../scraper-dashboard" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+clap = { version = "4", features = ["derive"] }

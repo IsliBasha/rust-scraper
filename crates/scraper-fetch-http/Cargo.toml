@@ -1,0 +1,15 @@
+[package]
+name = "scraper-fetch-http"
+version = "0.1.0"
+edition = "2021"
+description = "reqwest-based Fetcher with per-host rate limiting via governor"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }
+reqwest = { version = "0.12", features = ["gzip", "brotli", "deflate", "rustls-tls"], default-features = false }
+governor = "0.6"
+nonzero_ext = "0.3"

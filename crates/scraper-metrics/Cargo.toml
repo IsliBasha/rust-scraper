@@ -1,0 +1,11 @@
+[package]
+name = "scraper-metrics"
+version = "0.1.0"
+edition = "2021"
+description = "Metrics hub: atomic counters, watch-based gauge snapshots, broadcast events"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }

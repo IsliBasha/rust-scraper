@@ -1,0 +1,14 @@
+[package]
+name = "scraper-tui"
+version = "0.1.0"
+edition = "2021"
+description = "Ratatui terminal UI displaying live crawl metrics"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+scraper-metrics = { path = "../scraper-metrics" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+ratatui = "0.28"
+crossterm = "0.28"

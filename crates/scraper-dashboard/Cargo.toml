@@ -1,0 +1,23 @@
+[package]
+name = "scraper-dashboard"
+version = "0.1.0"
+edition = "2021"
+description = "Axum web dashboard with SSE metrics stream and embedded Preact frontend"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+scraper-metrics = { path = "../scraper-metrics" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+anyhow = { workspace = true }
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "compression-gzip"] }
+rust-embed = { version = "8", features = ["include-exclude"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures-util = "0.3"
+mime = "0.3"
+mime_guess = "2"

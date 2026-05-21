@@ -1,0 +1,17 @@
+[package]
+name = "scraper-browser"
+version = "0.1.0"
+edition = "2021"
+description = "Headless browser BrowserBackend via chromiumoxide"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }
+chromiumoxide = { version = "0.5", features = ["tokio-runtime"], optional = true }
+
+[features]
+default = []
+chromium = ["dep:chromiumoxide"]

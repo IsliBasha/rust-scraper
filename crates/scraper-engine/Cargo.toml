@@ -1,0 +1,16 @@
+[package]
+name = "scraper-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Coordinator actor + worker pool that drives the crawl lifecycle"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+scraper-config = { path = "../scraper-config" }
+scraper-metrics = { path = "../scraper-metrics" }
+scraper-extractor = { path = "../scraper-extractor" }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }
+serde = { workspace = true }

@@ -1,0 +1,13 @@
+[package]
+name = "scraper-config"
+version = "0.1.0"
+edition = "2021"
+description = "TOML/env/CLI-layered configuration for the Rust scraper framework"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+humantime-serde = { workspace = true }
+figment = { version = "0.10", features = ["toml", "env"] }
+toml = "0.8"
