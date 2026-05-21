@@ -2,8 +2,14 @@ use scraper::{Html, Selector};
 use scraper_core::{CrawlError, ExtractedData, ExtractionRule, SelectorEngine, SelectorKind, Url};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::sync::OnceLock;
 
 pub struct CssEngine;
+
+fn link_selector() -> &'static Selector {
+    static LINK_SEL: OnceLock<Selector> = OnceLock::new();
+    LINK_SEL.get_or_init(|| Selector::parse("a[href]").expect("hardcoded selector is valid"))
+}
 
 impl SelectorEngine for CssEngine {
     fn extract(
@@ -17,12 +23,10 @@ impl SelectorEngine for CssEngine {
 
         // Always collect discovered links from <a href="...">
         let mut discovered_links = Vec::new();
-        if let Ok(a_sel) = Selector::parse("a[href]") {
-            for el in document.select(&a_sel) {
-                if let Some(href) = el.value().attr("href") {
-                    if let Ok(url) = base_url.join(href) {
-                        discovered_links.push(url);
-                    }
+        for el in document.select(link_selector()) {
+            if let Some(href) = el.value().attr("href") {
+                if let Ok(url) = base_url.join(href) {
+                    discovered_links.push(url);
                 }
             }
         }
@@ -45,8 +49,14 @@ impl SelectorEngine for CssEngine {
                             .map(|v| Value::String(v.to_string()))
                             .unwrap_or(Value::Null)
                     } else {
-                        let text: String = el.text().collect::<Vec<_>>().join(" ");
-                        Value::String(text.split_whitespace().collect::<Vec<_>>().join(" "))
+                        // Flatten text nodes, split on whitespace in one pass — avoids
+                        // the intermediate Vec<&str> that join(" ") would otherwise allocate.
+                        let text = el
+                            .text()
+                            .flat_map(|t| t.split_whitespace())
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        Value::String(text)
                     }
                 })
                 .collect();

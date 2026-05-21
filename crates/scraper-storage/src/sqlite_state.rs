@@ -87,13 +87,18 @@ impl StateStore for SqliteStateStore {
         )
         .map_err(|e| CrawlError::storage(e.to_string()))?;
 
-        let id: i64 = conn
-            .query_row(
+        // On a new insert, last_insert_rowid() is ready with no extra query.
+        // On a duplicate (INSERT OR IGNORE skipped the row), changes() == 0 so we SELECT.
+        let id: i64 = if conn.changes() > 0 {
+            conn.last_insert_rowid()
+        } else {
+            conn.query_row(
                 "SELECT id FROM urls WHERE url = ?1",
                 params![url.as_str()],
                 |row| row.get(0),
             )
-            .map_err(|e| CrawlError::storage(e.to_string()))?;
+            .map_err(|e| CrawlError::storage(e.to_string()))?
+        };
 
         Ok(id as u64)
     }

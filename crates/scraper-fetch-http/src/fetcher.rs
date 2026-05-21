@@ -1,5 +1,6 @@
 use async_trait::async_trait;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
+use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use scraper_core::{CrawlError, CrawlJob, FetchResponse, Fetcher, Url};
 use std::time::Instant;
@@ -55,8 +56,6 @@ impl Fetcher for HttpFetcher {
             .map_err(|e| {
                 if e.is_timeout() {
                     CrawlError::Timeout { elapsed_ms: start.elapsed().as_millis() as u64 }
-                } else if e.is_connect() || e.is_request() {
-                    CrawlError::network(e.to_string())
                 } else {
                     CrawlError::network(e.to_string())
                 }
@@ -75,17 +74,24 @@ impl Fetcher for HttpFetcher {
             return Err(CrawlError::HttpStatus { status: status.as_u16() });
         }
 
-        // Read body with size cap to avoid OOM on pathological responses.
-        let raw_bytes = response
-            .bytes()
-            .await
-            .map_err(|e| CrawlError::network(e.to_string()))?;
-
-        let body: Bytes = if raw_bytes.len() > self.max_response_bytes {
-            raw_bytes.slice(..self.max_response_bytes)
-        } else {
-            raw_bytes
-        };
+        // Stream the body and stop reading once max_response_bytes is reached.
+        // This prevents OOM on pathological responses — we never buffer more than the cap.
+        let cap = self.max_response_bytes;
+        let mut stream = response.bytes_stream();
+        let mut buf = BytesMut::with_capacity(cap.min(256 * 1024));
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|e| CrawlError::network(e.to_string()))?;
+            let remaining = cap.saturating_sub(buf.len());
+            if remaining == 0 {
+                break;
+            }
+            let take = chunk.len().min(remaining);
+            buf.extend_from_slice(&chunk[..take]);
+            if take < chunk.len() {
+                break;
+            }
+        }
+        let body: Bytes = buf.freeze();
 
         let elapsed = start.elapsed();
         debug!(url = %job.url, status = status.as_u16(), bytes = body.len(), "fetched");

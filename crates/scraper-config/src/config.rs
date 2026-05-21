@@ -60,7 +60,7 @@ impl Default for RateLimitConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct RenderConfig {
     /// Use headless browser for all pages when true.
@@ -68,16 +68,6 @@ pub struct RenderConfig {
     /// CSS selector patterns that trigger browser fallback when HTTP gets no JS content.
     pub browser_trigger_selectors: Vec<String>,
     pub options: RenderOptions,
-}
-
-impl Default for RenderConfig {
-    fn default() -> Self {
-        Self {
-            always_browser: false,
-            browser_trigger_selectors: Vec::new(),
-            options: RenderOptions::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -94,18 +84,13 @@ pub struct RuleSet {
     pub rules: Vec<ExtractionRule>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OutputConfig {
     JsonLines { path: String },
     Sqlite { path: String },
+    #[default]
     Stdout,
-}
-
-impl Default for OutputConfig {
-    fn default() -> Self {
-        Self::Stdout
-    }
 }
 
 #[cfg(test)]

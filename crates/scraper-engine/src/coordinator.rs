@@ -37,13 +37,14 @@ impl Coordinator {
         fetcher: Arc<dyn Fetcher>,
         shutdown_rx: tokio::sync::broadcast::Receiver<ScrapeEvent>,
     ) -> Result<(), CrawlError> {
-        let (job_tx, job_rx) = mpsc::channel::<CoordMsg>(self.concurrency * 2);
-        let (result_tx, mut result_rx) = mpsc::channel::<WorkerResult>(self.concurrency * 4);
+        // Bounded MPMC job channel — each worker clones rx and calls recv() directly.
+        // Buffer sized generously to prevent coordinator stalling during bursty link discovery.
+        let (job_tx, job_rx) = async_channel::bounded::<CoordMsg>(self.concurrency * 16);
+        let (result_tx, mut result_rx) = mpsc::channel::<WorkerResult>(self.concurrency * 8);
 
         // Spawn worker pool.
-        let job_rx = Arc::new(tokio::sync::Mutex::new(job_rx));
         for _ in 0..self.concurrency {
-            let jrx = Arc::clone(&job_rx);
+            let jrx = job_rx.clone();
             let rtx = result_tx.clone();
             let f = Arc::clone(&fetcher);
             tokio::spawn(async move {
@@ -82,18 +83,14 @@ impl Coordinator {
                 // External shutdown signal.
                 Ok(ScrapeEvent::Shutdown) = shutdown_rx.recv() => {
                     info!("shutdown signal received — stopping coordinator");
-                    for _ in 0..self.concurrency {
-                        let _ = job_tx.send(CoordMsg::Shutdown).await;
-                    }
+                    job_tx.close(); // signals all workers to stop via Err(RecvError)
                     break;
                 }
                 // All workers done and no pending URLs.
                 else => {
                     if in_flight.is_empty() {
                         info!("crawl complete — all URLs processed");
-                        for _ in 0..self.concurrency {
-                            let _ = job_tx.send(CoordMsg::Shutdown).await;
-                        }
+                        job_tx.close();
                         break;
                     }
                 }
@@ -106,7 +103,7 @@ impl Coordinator {
 
     async fn dispatch(
         &self,
-        job_tx: &mpsc::Sender<CoordMsg>,
+        job_tx: &async_channel::Sender<CoordMsg>,
         in_flight: &mut HashSet<UrlId>,
         url: &Url,
         id: UrlId,
@@ -136,7 +133,7 @@ impl Coordinator {
     async fn handle_result(
         &self,
         result: WorkerResult,
-        job_tx: &mpsc::Sender<CoordMsg>,
+        job_tx: &async_channel::Sender<CoordMsg>,
         in_flight: &mut HashSet<UrlId>,
         seen: &mut HashSet<String>,
     ) -> Result<(), CrawlError> {

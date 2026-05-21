@@ -28,6 +28,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 humantime = "2"
 humantime-serde = "1"
+async-channel = "2"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 [profile.release]
 opt-level = 3

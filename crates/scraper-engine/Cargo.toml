@@ -11,6 +11,7 @@ scraper-metrics = { path = "../scraper-metrics" }
 scraper-extractor = { path = "../scraper-extractor" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
+async-channel = { workspace = true }
 tracing = { workspace = true }
 bytes = { workspace = true }
 serde = { workspace = true }

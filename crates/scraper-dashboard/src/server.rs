@@ -1,8 +1,7 @@
 use axum::{
     http::{header, StatusCode},
-    response::{IntoResponse, Response},
+    response::IntoResponse,
     routing::get,
-    Router,
 };
 use rust_embed::RustEmbed;
 use scraper_metrics::MetricsHub;
@@ -42,7 +41,8 @@ pub async fn serve(metrics: MetricsHub, addr: SocketAddr) -> anyhow::Result<()> 
         .route("/", get(static_handler))
         .fallback(static_handler)
         .layer(CompressionLayer::new())
-        .layer(CorsLayer::permissive());
+        // No permissive CORS — dashboard is a local tool, same-origin access only.
+        .layer(CorsLayer::new());
 
     info!(addr = %addr, "dashboard listening");
     let listener = tokio::net::TcpListener::bind(addr).await?;

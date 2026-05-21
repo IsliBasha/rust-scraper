@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use scraper_core::{CrawlError, ExtractionRule, Fetcher, Url};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 
 use crate::coordinator::CoordMsg;
 
@@ -21,19 +21,22 @@ pub struct FetchedPage {
 }
 
 /// Single worker loop: receive jobs, fetch, return results.
+///
+/// Uses an `async_channel::Receiver` so multiple workers can pull from the
+/// same channel concurrently without serialising on a `Mutex`.
 pub async fn run_worker(
-    job_rx: Arc<Mutex<mpsc::Receiver<CoordMsg>>>,
+    job_rx: async_channel::Receiver<CoordMsg>,
     result_tx: mpsc::Sender<WorkerResult>,
     fetcher: Arc<dyn Fetcher>,
 ) {
     loop {
-        let msg = {
-            let mut rx = job_rx.lock().await;
-            rx.recv().await
+        let msg = match job_rx.recv().await {
+            Ok(msg) => msg,
+            Err(_) => break, // channel closed — coordinator is done
         };
 
         match msg {
-            Some(CoordMsg::Job(job)) => {
+            CoordMsg::Job(job) => {
                 let url = job.url.clone();
                 let id = job.id;
                 let depth = job.depth;
@@ -59,7 +62,7 @@ pub async fn run_worker(
                     break; // coordinator dropped its receiver — shut down
                 }
             }
-            Some(CoordMsg::Shutdown) | None => break,
+            CoordMsg::Shutdown => break,
         }
     }
 }

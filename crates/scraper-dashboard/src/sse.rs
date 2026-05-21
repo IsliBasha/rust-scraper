@@ -1,5 +1,4 @@
 use axum::response::sse::{Event, KeepAlive, Sse};
-use futures_util::stream;
 use scraper_metrics::{MetricsHub, MetricsSnapshot};
 use serde_json::json;
 use std::convert::Infallible;

@@ -27,7 +27,7 @@ impl TuiApp {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
-        let mut snap_rx: watch::Receiver<MetricsSnapshot> = self.metrics.watch_snapshots();
+        let snap_rx: watch::Receiver<MetricsSnapshot> = self.metrics.watch_snapshots();
         let mut event_rx = self.metrics.subscribe_events();
 
         loop {
