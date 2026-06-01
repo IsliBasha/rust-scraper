@@ -4,18 +4,21 @@
 //! conflicts. `flavor = "multi_thread"` is required because the Engine spawns
 //! worker tasks and the MetricsHub snapshot task concurrently.
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::{Arc, Mutex as StdMutex}, time::Duration};
 
 use async_trait::async_trait;
 use axum::{extract::State, Router};
 use scraper_config::{ExtractionConfig, RuleSet};
-use scraper_core::{CrawlError, ExtractedData, ExtractionRule, ResultSink, RobotsChecker, SelectorKind, StateStore, Url};
+use scraper_core::{
+    ChangeType, CrawlError, DeltaTracker, ExtractedData, ExtractionRule, ResultSink,
+    RobotsChecker, SelectorKind, StateStore, Url,
+};
 use scraper_engine::Engine;
 use scraper_extractor::CompositeEngine;
 use scraper_fetch_http::HttpFetcher;
 use scraper_metrics::MetricsHub;
 use scraper_robots::RobotsCache;
-use scraper_storage::{SqliteResultSink, SqliteStateStore};
+use scraper_storage::{DeltaStore, SqliteResultSink, SqliteStateStore};
 use tokio::net::TcpListener;
 
 /// In-memory sink that captures written records for assertion.
@@ -98,6 +101,8 @@ async fn run_engine(
         concurrency: 2,
         robots,
         extraction_config: ExtractionConfig::default(),
+        interval: None,
+        delta_store: None,
     }
     .run()
     .await
@@ -276,6 +281,8 @@ async fn extraction_rules_and_auto_extract_populate_fields() {
         concurrency: 2,
         robots: None,
         extraction_config,
+        interval: None,
+        delta_store: None,
     }
     .run()
     .await
@@ -308,5 +315,106 @@ async fn extraction_rules_and_auto_extract_populate_fields() {
         fields.get("og_title").and_then(|v| v.as_str()),
         Some("Blue Widget OG"),
         "OG title auto-extracted"
+    );
+}
+
+// ── Test 6 ────────────────────────────────────────────────────────────────────
+
+/// Delta detection: first crawl emits New events; second crawl on changed content
+/// emits Modified events. Both are recorded in the shared DeltaStore.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn delta_detection_records_new_and_modified_between_runs() {
+    // Dynamic handler: serves whatever string is in `content` at the time of request.
+    async fn dynamic_handler(
+        State(c): State<Arc<StdMutex<String>>>,
+    ) -> axum::response::Html<String> {
+        axum::response::Html(c.lock().unwrap().clone())
+    }
+
+    let content = Arc::new(StdMutex::new(
+        "<html><body><h1>Version One</h1></body></html>".to_string(),
+    ));
+
+    let app = Router::new()
+        .fallback(dynamic_handler)
+        .with_state(Arc::clone(&content));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.ok() });
+    let base = format!("http://127.0.0.1:{port}");
+
+    // Shared delta store — both engine runs write into the same SQLite instance.
+    let delta = Arc::new(DeltaStore::open_memory().unwrap());
+
+    // ── Run 1 ──
+    let state1 = Arc::new(SqliteStateStore::open_memory().unwrap());
+    state1
+        .enqueue(&Url::parse(&format!("{base}/")).unwrap(), 0, None)
+        .await
+        .unwrap();
+
+    Engine {
+        fetcher: Arc::new(HttpFetcher::new(100.0, 50, 1024 * 1024).unwrap()),
+        selector: Arc::new(CompositeEngine::new()),
+        state: state1,
+        sink: Arc::new(SqliteResultSink::open_memory().unwrap()),
+        metrics: MetricsHub::new(),
+        max_depth: 0,
+        allowed_domains: vec!["127.0.0.1".into()],
+        concurrency: 2,
+        robots: None,
+        extraction_config: ExtractionConfig::default(),
+        interval: None,
+        delta_store: Some(Arc::clone(&delta) as Arc<dyn DeltaTracker>),
+    }
+    .run()
+    .await
+    .unwrap();
+
+    let after_run1 = delta.query_changes().unwrap();
+    assert_eq!(after_run1.len(), 1, "run 1 should produce exactly one New event");
+    assert_eq!(after_run1[0].change_type, ChangeType::New, "first visit is New");
+
+    // Change the page content before run 2.
+    *content.lock().unwrap() =
+        "<html><body><h1>Version Two (changed)</h1></body></html>".to_string();
+
+    // ── Run 2 ──
+    let state2 = Arc::new(SqliteStateStore::open_memory().unwrap());
+    state2
+        .enqueue(&Url::parse(&format!("{base}/")).unwrap(), 0, None)
+        .await
+        .unwrap();
+
+    Engine {
+        fetcher: Arc::new(HttpFetcher::new(100.0, 50, 1024 * 1024).unwrap()),
+        selector: Arc::new(CompositeEngine::new()),
+        state: state2,
+        sink: Arc::new(SqliteResultSink::open_memory().unwrap()),
+        metrics: MetricsHub::new(),
+        max_depth: 0,
+        allowed_domains: vec!["127.0.0.1".into()],
+        concurrency: 2,
+        robots: None,
+        extraction_config: ExtractionConfig::default(),
+        interval: None,
+        delta_store: Some(Arc::clone(&delta) as Arc<dyn DeltaTracker>),
+    }
+    .run()
+    .await
+    .unwrap();
+
+    server.abort();
+
+    let after_run2 = delta.query_changes().unwrap();
+    assert_eq!(after_run2.len(), 2, "run 2 should add a Modified event");
+    assert_eq!(
+        after_run2[1].change_type,
+        ChangeType::Modified,
+        "second visit with different content is Modified"
+    );
+    assert_ne!(
+        after_run2[1].old_hash, after_run2[1].new_hash,
+        "hashes must differ on a modification"
     );
 }
