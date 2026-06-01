@@ -2681,6 +2681,7 @@ dependencies = [
  "scraper-extractor",
  "scraper-fetch-http",
  "scraper-metrics",
+ "scraper-robots",
  "scraper-storage",
  "scraper-tui",
  "tokio",

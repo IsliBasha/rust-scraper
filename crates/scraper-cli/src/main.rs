@@ -9,6 +9,7 @@ use scraper_engine::Engine;
 use scraper_extractor::CompositeEngine;
 use scraper_fetch_http::HttpFetcher;
 use scraper_metrics::MetricsHub;
+use scraper_robots::RobotsCache;
 use scraper_storage::{SqliteResultSink, SqliteStateStore};
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -111,7 +112,9 @@ async fn main() -> anyhow::Result<()> {
                 max_depth: cfg.max_depth,
                 allowed_domains: cfg.allowed_domains.clone(),
                 concurrency: cfg.concurrency,
-                robots: None,
+                robots: Some(Arc::new(
+                    RobotsCache::new("rust-scraper").context("failed to build robots cache")?,
+                )),
             };
 
             engine.run().await.context("crawl engine error")?;

@@ -17,6 +17,7 @@ scraper-storage = { path = "../scraper-storage" }
 scraper-fetch-http = { path = "../scraper-fetch-http" }
 scraper-browser = { path = "../scraper-browser" }
 scraper-engine = { path = "../scraper-engine" }
+scraper-robots = { path = "../scraper-robots" }
 scraper-tui = { path = "../scraper-tui" }
 scraper-dashboard = { path = "../scraper-dashboard" }
 tokio = { workspace = true }
