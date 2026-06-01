@@ -6,8 +6,10 @@
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use async_trait::async_trait;
 use axum::{extract::State, Router};
-use scraper_core::{RobotsChecker, StateStore, Url};
+use scraper_config::{ExtractionConfig, RuleSet};
+use scraper_core::{CrawlError, ExtractedData, ExtractionRule, ResultSink, RobotsChecker, SelectorKind, StateStore, Url};
 use scraper_engine::Engine;
 use scraper_extractor::CompositeEngine;
 use scraper_fetch_http::HttpFetcher;
@@ -15,6 +17,29 @@ use scraper_metrics::MetricsHub;
 use scraper_robots::RobotsCache;
 use scraper_storage::{SqliteResultSink, SqliteStateStore};
 use tokio::net::TcpListener;
+
+/// In-memory sink that captures written records for assertion.
+struct CaptureSink(std::sync::Mutex<Vec<ExtractedData>>);
+
+impl CaptureSink {
+    fn new() -> Arc<Self> {
+        Arc::new(Self(std::sync::Mutex::new(Vec::new())))
+    }
+    fn records(&self) -> Vec<ExtractedData> {
+        self.0.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl ResultSink for CaptureSink {
+    async fn write(&self, data: &ExtractedData) -> Result<(), CrawlError> {
+        self.0.lock().unwrap().push(data.clone());
+        Ok(())
+    }
+    async fn flush(&self) -> Result<(), CrawlError> {
+        Ok(())
+    }
+}
 
 type Pages = HashMap<&'static str, &'static str>;
 
@@ -72,6 +97,7 @@ async fn run_engine(
         allowed_domains,
         concurrency: 2,
         robots,
+        extraction_config: ExtractionConfig::default(),
     }
     .run()
     .await
@@ -197,4 +223,90 @@ async fn robots_txt_blocks_disallowed_paths() {
     let snap = metrics.snapshot();
     assert_eq!(snap.urls_done, 2, "only / and /allowed should be crawled");
     assert_eq!(snap.urls_failed, 0, "/secret must not be attempted");
+}
+
+// ── Test 5 ────────────────────────────────────────────────────────────────────
+
+/// ExtractionConfig rules are applied to pages whose URL matches the pattern.
+/// JSON-LD and Open Graph fields are auto-extracted on every page.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn extraction_rules_and_auto_extract_populate_fields() {
+    let (base, server) = start_server(HashMap::from([
+        (
+            "/",
+            r#"<html><head>
+                <script type="application/ld+json">
+                {"@type":"Product","name":"Blue Widget"}
+                </script>
+                <meta property="og:title" content="Blue Widget OG">
+            </head><body><h1>Blue Widget</h1></body></html>"#,
+        ),
+    ]))
+    .await;
+
+    let extraction_config = ExtractionConfig {
+        rule_sets: vec![RuleSet {
+            url_pattern: "*/".into(),
+            rules: vec![ExtractionRule {
+                name: "heading".into(),
+                selector: SelectorKind::Css("h1".into()),
+                attr: None,
+                many: false,
+            }],
+        }],
+    };
+
+    let sink = CaptureSink::new();
+    let state = Arc::new(SqliteStateStore::open_memory().unwrap());
+    let url_str = format!("{base}/");
+    state
+        .enqueue(&Url::parse(&url_str).unwrap(), 0, None)
+        .await
+        .unwrap();
+
+    let metrics = MetricsHub::new();
+    Engine {
+        fetcher: Arc::new(HttpFetcher::new(100.0, 50, 1024 * 1024).unwrap()),
+        selector: Arc::new(CompositeEngine::new()),
+        state,
+        sink: Arc::clone(&sink) as Arc<dyn ResultSink>,
+        metrics,
+        max_depth: 0,
+        allowed_domains: vec!["127.0.0.1".into()],
+        concurrency: 2,
+        robots: None,
+        extraction_config,
+    }
+    .run()
+    .await
+    .unwrap();
+
+    server.abort();
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let records = sink.records();
+    assert_eq!(records.len(), 1, "one page crawled");
+
+    let fields = &records[0].fields;
+    assert_eq!(
+        fields.get("heading").and_then(|v| v.as_str()),
+        Some("Blue Widget"),
+        "CSS rule extracted h1 text"
+    );
+    assert_eq!(
+        fields.get("ld_type").and_then(|v| v.as_str()),
+        Some("Product"),
+        "JSON-LD @type auto-extracted"
+    );
+    assert_eq!(
+        fields.get("ld_name").and_then(|v| v.as_str()),
+        Some("Blue Widget"),
+        "JSON-LD name auto-extracted"
+    );
+    assert_eq!(
+        fields.get("og_title").and_then(|v| v.as_str()),
+        Some("Blue Widget OG"),
+        "OG title auto-extracted"
+    );
 }

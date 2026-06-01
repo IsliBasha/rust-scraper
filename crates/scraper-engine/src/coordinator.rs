@@ -1,9 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use scraper_config::ExtractionConfig;
+use scraper_extractor::{jsonld::extract_jsonld, opengraph::extract_og, pattern::url_matches_pattern};
 use scraper_core::{
-    CrawlError, CrawlJob, ExtractedData, Fetcher, ResultSink, RobotsChecker, SelectorEngine,
-    StateStore, Url, UrlId, UrlStatus,
+    CrawlError, CrawlJob, ExtractedData, ExtractionRule, Fetcher, ResultSink, RobotsChecker,
+    SelectorEngine, StateStore, Url, UrlId, UrlStatus,
 };
 use scraper_metrics::{MetricsHub, ScrapeEvent};
 use tokio::sync::mpsc;
@@ -31,6 +33,8 @@ pub struct Coordinator {
     pub concurrency: usize,
     /// Optional robots.txt checker. `None` disables robots.txt enforcement.
     pub robots: Option<Arc<dyn RobotsChecker>>,
+    /// URL-pattern-driven extraction rules from the user config.
+    pub extraction_config: ExtractionConfig,
 }
 
 /// Returns true if `url`'s host is permitted by the domain allowlist.
@@ -173,13 +177,29 @@ impl Coordinator {
                     elapsed_ms: 0,
                 });
 
-                // Run selector extraction.
-                let extracted = self.selector.extract(&data.html, &data.url, &data.rules)?;
+                // Collect rules whose url_pattern matches this page.
+                let matching_rules: Vec<ExtractionRule> = self
+                    .extraction_config
+                    .rule_sets
+                    .iter()
+                    .filter(|rs| url_matches_pattern(data.url.as_str(), &rs.url_pattern))
+                    .flat_map(|rs| rs.rules.iter().cloned())
+                    .collect();
+
+                // Run selector extraction with the matched rules.
+                let extracted = self.selector.extract(&data.html, &data.url, &matching_rules)?;
+
+                // Auto-extract JSON-LD and Open Graph fields (lower priority).
+                let mut fields = BTreeMap::new();
+                fields.extend(extract_jsonld(&data.html));
+                fields.extend(extract_og(&data.html));
+                // Selector-rule fields override auto-extracted ones with the same key.
+                fields.extend(extracted.fields);
 
                 // Persist extracted data.
                 let extracted_data = ExtractedData {
                     url: extracted.url,
-                    fields: extracted.fields,
+                    fields,
                     discovered_links: extracted.discovered_links.clone(),
                 };
                 if let Err(e) = self.sink.write(&extracted_data).await {

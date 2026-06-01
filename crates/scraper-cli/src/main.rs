@@ -10,7 +10,9 @@ use scraper_extractor::CompositeEngine;
 use scraper_fetch_http::HttpFetcher;
 use scraper_metrics::MetricsHub;
 use scraper_robots::RobotsCache;
-use scraper_storage::{SqliteResultSink, SqliteStateStore};
+use scraper_config::OutputConfig;
+use scraper_core::ResultSink;
+use scraper_storage::{JsonLinesSink, SqliteResultSink, SqliteStateStore};
 use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Parser)]
@@ -59,8 +61,18 @@ async fn main() -> anyhow::Result<()> {
             let db_path = db.to_string_lossy().into_owned();
             let state =
                 Arc::new(SqliteStateStore::open(&db_path).context("failed to open state DB")?);
-            let sink =
-                Arc::new(SqliteResultSink::open(&db_path).context("failed to open results DB")?);
+
+            let sink: Arc<dyn ResultSink> = match &cfg.output {
+                OutputConfig::JsonLines { path } => Arc::new(
+                    JsonLinesSink::create(path).context("failed to open JSON Lines output")?,
+                ),
+                OutputConfig::Sqlite { path } => Arc::new(
+                    SqliteResultSink::open(path).context("failed to open results DB")?,
+                ),
+                OutputConfig::Stdout => {
+                    Arc::new(SqliteResultSink::open(&db_path).context("failed to open results DB")?)
+                }
+            };
 
             for seed in &cfg.seeds {
                 let url = scraper_core::Url::parse(seed)
@@ -115,6 +127,7 @@ async fn main() -> anyhow::Result<()> {
                 robots: Some(Arc::new(
                     RobotsCache::new("rust-scraper").context("failed to build robots cache")?,
                 )),
+                extraction_config: cfg.extraction.clone(),
             };
 
             engine.run().await.context("crawl engine error")?;

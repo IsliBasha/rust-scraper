@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use scraper_config::ExtractionConfig;
 use scraper_core::{CrawlError, Fetcher, ResultSink, RobotsChecker, SelectorEngine, StateStore};
 use scraper_metrics::MetricsHub;
 use tracing::info;
@@ -18,6 +19,8 @@ pub struct Engine {
     pub concurrency: usize,
     /// Optional robots.txt checker. `None` disables robots.txt enforcement.
     pub robots: Option<Arc<dyn RobotsChecker>>,
+    /// URL-pattern-driven extraction rules. Empty config means no config-driven rules.
+    pub extraction_config: ExtractionConfig,
 }
 
 impl Engine {
@@ -39,6 +42,7 @@ impl Engine {
             allowed_domains: self.allowed_domains,
             concurrency: self.concurrency,
             robots: self.robots,
+            extraction_config: self.extraction_config,
         };
 
         coordinator.run(self.fetcher, shutdown_rx).await

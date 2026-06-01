@@ -1,4 +1,7 @@
 pub mod css;
+pub mod jsonld;
+pub mod opengraph;
+pub mod pattern;
 
 #[cfg(feature = "xpath")]
 pub mod xpath;
