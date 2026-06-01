@@ -74,6 +74,7 @@ impl SelectorEngine for CssEngine {
             url: base_url.clone(),
             fields,
             discovered_links,
+            content_hash: None,
         })
     }
 

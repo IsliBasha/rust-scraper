@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::{
-    CrawlError, CrawlJob, ExtractedData, ExtractionRule, FetchResponse, PersistedUrl,
+    ChangeEvent, CrawlError, CrawlJob, ExtractedData, ExtractionRule, FetchResponse, PersistedUrl,
     RenderOptions, SelectorKind, Url, UrlId, UrlStatus,
 };
 
@@ -74,6 +74,34 @@ pub trait StateStore: Send + Sync {
 
     /// Crash-recovery: reset any rows stuck InProgress back to Pending.
     async fn reclaim_in_flight(&self) -> Result<u64, CrawlError>;
+
+    /// Reset all `done` URLs back to `pending` for a fresh re-crawl.
+    ///
+    /// Returns the number of rows reset. Default is a no-op (returns 0).
+    async fn reset_for_recrawl(&self) -> Result<u64, CrawlError> {
+        Ok(0)
+    }
+}
+
+/// Tracks content hashes across crawl runs and records detected changes.
+#[async_trait]
+pub trait DeltaTracker: Send + Sync {
+    /// Compare `new_hash` against the stored hash for `url`.
+    ///
+    /// - First visit → `New` event stored and returned.
+    /// - Same hash → timestamp updated, `None` returned.
+    /// - Different hash → `Modified` event stored and returned.
+    async fn detect_and_record(
+        &self,
+        url: &str,
+        new_hash: &str,
+    ) -> Result<Option<ChangeEvent>, CrawlError>;
+
+    /// Find all tracked URLs whose stored timestamp is older than `crawl_start_secs`.
+    ///
+    /// These were not visited in the current crawl run. Records and returns
+    /// `Removed` events for each.
+    async fn detect_removed(&self, crawl_start_secs: i64) -> Result<Vec<ChangeEvent>, CrawlError>;
 }
 
 /// Writes extracted data to an output sink (JSON Lines file, SQLite table, stdout, etc.).

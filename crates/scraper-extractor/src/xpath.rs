@@ -53,6 +53,7 @@ impl SelectorEngine for XPathEngine {
             url: base_url.clone(),
             fields,
             discovered_links: Vec::new(),
+            content_hash: None,
         })
     }
 

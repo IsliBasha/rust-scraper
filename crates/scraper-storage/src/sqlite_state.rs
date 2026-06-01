@@ -159,6 +159,17 @@ impl StateStore for SqliteStateStore {
             .map_err(|e| CrawlError::storage(e.to_string()))?;
         Ok(changed as u64)
     }
+
+    async fn reset_for_recrawl(&self) -> Result<u64, CrawlError> {
+        let conn = self.conn.lock().unwrap();
+        let changed = conn
+            .execute(
+                "UPDATE urls SET status = 'pending', attempt = 0 WHERE status = 'done'",
+                [],
+            )
+            .map_err(|e| CrawlError::storage(e.to_string()))?;
+        Ok(changed as u64)
+    }
 }
 
 fn parse_status(s: &str) -> Result<UrlStatus, CrawlError> {
@@ -233,5 +244,25 @@ mod tests {
 
         let pending = store.load_pending().await.unwrap();
         assert_eq!(pending[0].status, UrlStatus::Pending);
+    }
+
+    #[tokio::test]
+    async fn reset_for_recrawl_moves_done_urls_back_to_pending() {
+        let store = SqliteStateStore::open_memory().unwrap();
+        let u = url("https://example.com/page");
+
+        let id = store.enqueue(&u, 0, None).await.unwrap();
+        store.mark_done(id).await.unwrap();
+
+        // Verify it's gone from pending after mark_done.
+        assert!(store.load_pending().await.unwrap().is_empty());
+
+        let reset = store.reset_for_recrawl().await.unwrap();
+        assert_eq!(reset, 1, "one URL should be reset");
+
+        let pending = store.load_pending().await.unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].status, UrlStatus::Pending);
+        assert_eq!(pending[0].attempt, 0);
     }
 }

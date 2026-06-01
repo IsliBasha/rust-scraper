@@ -60,6 +60,7 @@ mod tests {
             url: Url::parse(url).unwrap(),
             fields,
             discovered_links: vec![],
+            content_hash: None,
         }
     }
 
@@ -144,6 +145,7 @@ mod tests {
             url: Url::parse("https://example.com/widget").unwrap(),
             fields,
             discovered_links: vec![],
+            content_hash: None,
         };
         sink.write(&rec).await.unwrap();
         sink.flush().await.unwrap();

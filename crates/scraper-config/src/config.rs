@@ -17,6 +17,9 @@ pub struct CrawlConfig {
     /// Global crawl timeout.
     #[serde(with = "humantime_serde")]
     pub timeout: Duration,
+    /// Re-crawl interval. `None` means one-shot mode.
+    #[serde(default, with = "humantime_serde::option")]
+    pub interval: Option<Duration>,
     pub rate_limit: RateLimitConfig,
     pub render: RenderConfig,
     pub extraction: ExtractionConfig,
@@ -31,6 +34,7 @@ impl Default for CrawlConfig {
             allowed_domains: Vec::new(),
             concurrency: 8,
             timeout: Duration::from_secs(300),
+            interval: None,
             rate_limit: RateLimitConfig::default(),
             render: RenderConfig::default(),
             extraction: ExtractionConfig::default(),
@@ -132,5 +136,28 @@ mod tests {
         let out = OutputConfig::Stdout;
         let s = toml::to_string(&out).expect("serialise");
         assert!(s.contains("stdout"), "got: {s}");
+    }
+
+    #[test]
+    fn interval_defaults_to_none() {
+        assert!(CrawlConfig::default().interval.is_none());
+    }
+
+    #[test]
+    fn interval_parses_from_toml() {
+        let raw = r#"interval = "24h""#;
+        let cfg: CrawlConfig = toml::from_str(raw).expect("parse");
+        assert_eq!(cfg.interval, Some(Duration::from_secs(86400)));
+    }
+
+    #[test]
+    fn interval_round_trips_via_toml() {
+        let cfg = CrawlConfig {
+            interval: Some(Duration::from_secs(3600)),
+            ..Default::default()
+        };
+        let s = toml::to_string(&cfg).expect("serialise");
+        let back: CrawlConfig = toml::from_str(&s).expect("deserialise");
+        assert_eq!(back.interval, cfg.interval);
     }
 }

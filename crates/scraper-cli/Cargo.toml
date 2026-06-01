@@ -24,4 +24,5 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
+humantime = { workspace = true }
 clap = { version = "4", features = ["derive"] }

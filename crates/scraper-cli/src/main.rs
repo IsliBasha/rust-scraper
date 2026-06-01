@@ -1,18 +1,16 @@
-use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use scraper_browser::StubBrowser;
-use scraper_config::load;
-use scraper_core::StateStore;
+use scraper_config::{load, OutputConfig};
+use scraper_core::{DeltaTracker, ResultSink, StateStore};
 use scraper_engine::Engine;
 use scraper_extractor::CompositeEngine;
 use scraper_fetch_http::HttpFetcher;
 use scraper_metrics::MetricsHub;
 use scraper_robots::RobotsCache;
-use scraper_config::OutputConfig;
-use scraper_core::ResultSink;
-use scraper_storage::{JsonLinesSink, SqliteResultSink, SqliteStateStore};
+use scraper_storage::{DeltaStore, JsonLinesSink, SqliteResultSink, SqliteStateStore};
 use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Parser)]
@@ -34,6 +32,9 @@ enum Cmd {
         tui: bool,
         #[arg(long, default_value = "scraper.db")]
         db: PathBuf,
+        /// Re-crawl interval (e.g. "24h", "30m"). Omit for one-shot mode.
+        #[arg(long)]
+        interval: Option<String>,
         seeds: Vec<String>,
     },
 }
@@ -50,6 +51,7 @@ async fn main() -> anyhow::Result<()> {
             dashboard,
             tui,
             db,
+            interval,
             seeds,
         } => {
             let mut cfg = load(config.as_deref()).context("failed to load config")?;
@@ -58,9 +60,21 @@ async fn main() -> anyhow::Result<()> {
             }
             anyhow::ensure!(!cfg.seeds.is_empty(), "no seed URLs provided");
 
+            // Parse --interval duration string (e.g. "24h", "30m").
+            let crawl_interval: Option<Duration> = interval
+                .as_deref()
+                .map(|s| humantime::parse_duration(s).context("invalid --interval duration"))
+                .transpose()?;
+
             let db_path = db.to_string_lossy().into_owned();
             let state =
                 Arc::new(SqliteStateStore::open(&db_path).context("failed to open state DB")?);
+
+            // Always open the delta store for hash tracking across runs.
+            let delta_path = format!("{db_path}.delta");
+            let delta_store: Arc<dyn DeltaTracker> = Arc::new(
+                DeltaStore::open(&delta_path).context("failed to open delta DB")?,
+            );
 
             let sink: Arc<dyn ResultSink> = match &cfg.output {
                 OutputConfig::JsonLines { path } => Arc::new(
@@ -128,6 +142,8 @@ async fn main() -> anyhow::Result<()> {
                     RobotsCache::new("rust-scraper").context("failed to build robots cache")?,
                 )),
                 extraction_config: cfg.extraction.clone(),
+                interval: crawl_interval,
+                delta_store: Some(delta_store),
             };
 
             engine.run().await.context("crawl engine error")?;

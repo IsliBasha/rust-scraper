@@ -9,6 +9,7 @@ scraper-core = { path = "../scraper-core" }
 scraper-config = { path = "../scraper-config" }
 scraper-metrics = { path = "../scraper-metrics" }
 scraper-extractor = { path = "../scraper-extractor" }
+scraper-storage = { path = "../scraper-storage" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 async-channel = { workspace = true }
@@ -17,7 +18,6 @@ bytes = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]
-scraper-storage = { path = "../scraper-storage" }
 scraper-fetch-http = { path = "../scraper-fetch-http" }
 scraper-robots = { path = "../scraper-robots" }
 axum = "0.7"

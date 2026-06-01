@@ -83,6 +83,7 @@ impl SelectorEngine for CompositeEngine {
             url: base_url.clone(),
             fields: merged,
             discovered_links: links,
+            content_hash: None,
         })
     }
 

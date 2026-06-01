@@ -14,6 +14,8 @@ impl SqliteResultSink {
             .map_err(|e| CrawlError::storage(e.to_string()))?;
         conn.execute_batch(SCHEMA)
             .map_err(|e| CrawlError::storage(e.to_string()))?;
+        // Best-effort migration for existing databases that lack the content_hash column.
+        conn.execute_batch(MIGRATE).ok();
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -26,11 +28,16 @@ impl SqliteResultSink {
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS results (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    url        TEXT    NOT NULL,
-    fields     TEXT    NOT NULL,
-    scraped_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    url          TEXT    NOT NULL,
+    fields       TEXT    NOT NULL,
+    content_hash TEXT,
+    scraped_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+";
+
+const MIGRATE: &str = "
+ALTER TABLE results ADD COLUMN content_hash TEXT;
 ";
 
 #[async_trait]
@@ -40,8 +47,8 @@ impl ResultSink for SqliteResultSink {
             serde_json::to_string(&data.fields).map_err(|e| CrawlError::storage(e.to_string()))?;
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO results (url, fields) VALUES (?1, ?2)",
-            params![data.url.as_str(), fields_json],
+            "INSERT INTO results (url, fields, content_hash) VALUES (?1, ?2, ?3)",
+            params![data.url.as_str(), fields_json, data.content_hash.as_deref()],
         )
         .map_err(|e| CrawlError::storage(e.to_string()))?;
         Ok(())
@@ -73,6 +80,7 @@ mod tests {
                 m
             },
             discovered_links: Vec::new(),
+            content_hash: Some("abc123".into()),
         };
         sink.write(&data).await.unwrap();
         sink.flush().await.unwrap();

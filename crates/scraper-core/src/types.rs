@@ -100,6 +100,38 @@ pub struct ExtractedData {
     pub fields: BTreeMap<String, Value>,
     /// Outbound links discovered during extraction.
     pub discovered_links: Vec<Url>,
+    /// SHA-256 hex digest of the raw HTML. Set by the coordinator, not the extractor.
+    pub content_hash: Option<String>,
+}
+
+/// The kind of change detected between successive crawl runs for a URL.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChangeType {
+    New,
+    Modified,
+    Removed,
+}
+
+impl std::fmt::Display for ChangeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::New => write!(f, "new"),
+            Self::Modified => write!(f, "modified"),
+            Self::Removed => write!(f, "removed"),
+        }
+    }
+}
+
+/// A change detected between two successive crawl runs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChangeEvent {
+    pub url: String,
+    pub change_type: ChangeType,
+    /// Unix timestamp (seconds) when this change was detected.
+    pub detected_at: i64,
+    pub old_hash: Option<String>,
+    pub new_hash: Option<String>,
 }
 
 /// A URL row loaded from the StateStore for resume/recovery.

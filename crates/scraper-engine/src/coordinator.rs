@@ -4,10 +4,11 @@ use std::sync::Arc;
 use scraper_config::ExtractionConfig;
 use scraper_extractor::{jsonld::extract_jsonld, opengraph::extract_og, pattern::url_matches_pattern};
 use scraper_core::{
-    CrawlError, CrawlJob, ExtractedData, ExtractionRule, Fetcher, ResultSink, RobotsChecker,
-    SelectorEngine, StateStore, Url, UrlId, UrlStatus,
+    CrawlError, CrawlJob, DeltaTracker, ExtractedData, ExtractionRule, Fetcher, ResultSink,
+    RobotsChecker, SelectorEngine, StateStore, Url, UrlId, UrlStatus,
 };
 use scraper_metrics::{MetricsHub, ScrapeEvent};
+use scraper_storage::hash_html;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -35,6 +36,8 @@ pub struct Coordinator {
     pub robots: Option<Arc<dyn RobotsChecker>>,
     /// URL-pattern-driven extraction rules from the user config.
     pub extraction_config: ExtractionConfig,
+    /// Optional delta tracker for content-hash change detection.
+    pub delta_store: Option<Arc<dyn DeltaTracker>>,
 }
 
 /// Returns true if `url`'s host is permitted by the domain allowlist.
@@ -196,11 +199,33 @@ impl Coordinator {
                 // Selector-rule fields override auto-extracted ones with the same key.
                 fields.extend(extracted.fields);
 
+                // Compute content hash for delta detection.
+                let content_hash = hash_html(&data.html);
+
+                // Delta detection: compare against previous crawl's hash.
+                if let Some(ds) = &self.delta_store {
+                    match ds
+                        .detect_and_record(extracted.url.as_str(), &content_hash)
+                        .await
+                    {
+                        Ok(Some(event)) => {
+                            info!(
+                                url = %extracted.url,
+                                change_type = %event.change_type,
+                                "delta detected"
+                            );
+                        }
+                        Ok(None) => {}
+                        Err(e) => warn!("delta detection error: {e}"),
+                    }
+                }
+
                 // Persist extracted data.
                 let extracted_data = ExtractedData {
                     url: extracted.url,
                     fields,
                     discovered_links: extracted.discovered_links.clone(),
+                    content_hash: Some(content_hash),
                 };
                 if let Err(e) = self.sink.write(&extracted_data).await {
                     warn!("sink write error: {e}");
