@@ -7,11 +7,12 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use axum::{extract::State, Router};
-use scraper_core::{StateStore, Url};
+use scraper_core::{RobotsChecker, StateStore, Url};
 use scraper_engine::Engine;
 use scraper_extractor::CompositeEngine;
 use scraper_fetch_http::HttpFetcher;
 use scraper_metrics::MetricsHub;
+use scraper_robots::RobotsCache;
 use scraper_storage::{SqliteResultSink, SqliteStateStore};
 use tokio::net::TcpListener;
 
@@ -44,7 +45,12 @@ async fn start_server(pages: Pages) -> (String, tokio::task::JoinHandle<()>) {
 
 /// Seed `url`, run the engine to completion, sleep 350 ms so the MetricsHub
 /// snapshot task has time to tick, then return the hub for assertions.
-async fn run_engine(seed: String, max_depth: u32, allowed_domains: Vec<String>) -> MetricsHub {
+async fn run_engine(
+    seed: String,
+    max_depth: u32,
+    allowed_domains: Vec<String>,
+    robots: Option<Arc<dyn RobotsChecker>>,
+) -> MetricsHub {
     let state = Arc::new(SqliteStateStore::open_memory().unwrap());
     let sink = Arc::new(SqliteResultSink::open_memory().unwrap());
 
@@ -65,6 +71,7 @@ async fn run_engine(seed: String, max_depth: u32, allowed_domains: Vec<String>) 
         max_depth,
         allowed_domains,
         concurrency: 2,
+        robots,
     }
     .run()
     .await
@@ -91,7 +98,7 @@ async fn follows_links_within_depth() {
     ]))
     .await;
 
-    let metrics = run_engine(format!("{base}/"), 2, vec!["127.0.0.1".into()]).await;
+    let metrics = run_engine(format!("{base}/"), 2, vec!["127.0.0.1".into()], None).await;
 
     server.abort();
 
@@ -114,7 +121,7 @@ async fn depth_zero_crawls_only_seed() {
     ]))
     .await;
 
-    let metrics = run_engine(format!("{base}/"), 0, vec!["127.0.0.1".into()]).await;
+    let metrics = run_engine(format!("{base}/"), 0, vec!["127.0.0.1".into()], None).await;
 
     server.abort();
 
@@ -145,6 +152,7 @@ async fn domain_filter_blocks_external_links() {
         format!("{base}/"),
         2,
         vec!["127.0.0.1".into()], // evil.example.com is not in this list
+        None,
     )
     .await;
 
@@ -153,4 +161,40 @@ async fn domain_filter_blocks_external_links() {
     let snap = metrics.snapshot();
     assert_eq!(snap.urls_done, 2, "only / and /local should be visited");
     assert_eq!(snap.urls_failed, 0, "external link must not be attempted");
+}
+
+// ── Test 4 ────────────────────────────────────────────────────────────────────
+
+/// robots.txt `Disallow: /secret` prevents the coordinator from enqueuing
+/// `/secret`, while `/allowed` is still crawled normally.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn robots_txt_blocks_disallowed_paths() {
+    let (base, server) = start_server(HashMap::from([
+        (
+            "/robots.txt",
+            "User-agent: *\nDisallow: /secret\n",
+        ),
+        (
+            "/",
+            r#"<html><body><a href="/secret">s</a><a href="/allowed">a</a></body></html>"#,
+        ),
+        ("/allowed", "<html><body>safe leaf</body></html>"),
+        ("/secret", "<html><body>should never be crawled</body></html>"),
+    ]))
+    .await;
+
+    let robots = Arc::new(RobotsCache::new("rust-scraper").unwrap());
+    let metrics = run_engine(
+        format!("{base}/"),
+        2,
+        vec!["127.0.0.1".into()],
+        Some(robots as Arc<dyn RobotsChecker>),
+    )
+    .await;
+
+    server.abort();
+
+    let snap = metrics.snapshot();
+    assert_eq!(snap.urls_done, 2, "only / and /allowed should be crawled");
+    assert_eq!(snap.urls_failed, 0, "/secret must not be attempted");
 }

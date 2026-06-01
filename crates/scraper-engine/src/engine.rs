@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use scraper_core::{CrawlError, Fetcher, ResultSink, SelectorEngine, StateStore};
+use scraper_core::{CrawlError, Fetcher, ResultSink, RobotsChecker, SelectorEngine, StateStore};
 use scraper_metrics::MetricsHub;
 use tracing::info;
 
@@ -16,6 +16,8 @@ pub struct Engine {
     pub max_depth: u32,
     pub allowed_domains: Vec<String>,
     pub concurrency: usize,
+    /// Optional robots.txt checker. `None` disables robots.txt enforcement.
+    pub robots: Option<Arc<dyn RobotsChecker>>,
 }
 
 impl Engine {
@@ -36,6 +38,7 @@ impl Engine {
             max_depth: self.max_depth,
             allowed_domains: self.allowed_domains,
             concurrency: self.concurrency,
+            robots: self.robots,
         };
 
         coordinator.run(self.fetcher, shutdown_rx).await

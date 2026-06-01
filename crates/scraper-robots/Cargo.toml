@@ -1,0 +1,17 @@
+[package]
+name = "scraper-robots"
+version = "0.1.0"
+edition = "2021"
+description = "robots.txt fetching, parsing, and per-host caching for rscrape"
+
+[dependencies]
+scraper-core = { path = "../scraper-core" }
+texting_robots = "0.2"
+reqwest = { version = "0.12", features = ["rustls-tls", "gzip"], default-features = false }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+axum = "0.7"

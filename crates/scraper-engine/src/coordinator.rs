@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use scraper_core::{
-    CrawlError, CrawlJob, ExtractedData, Fetcher, ResultSink, SelectorEngine, StateStore, Url,
-    UrlId, UrlStatus,
+    CrawlError, CrawlJob, ExtractedData, Fetcher, ResultSink, RobotsChecker, SelectorEngine,
+    StateStore, Url, UrlId, UrlStatus,
 };
 use scraper_metrics::{MetricsHub, ScrapeEvent};
 use tokio::sync::mpsc;
@@ -29,6 +29,8 @@ pub struct Coordinator {
     pub max_depth: u32,
     pub allowed_domains: Vec<String>,
     pub concurrency: usize,
+    /// Optional robots.txt checker. `None` disables robots.txt enforcement.
+    pub robots: Option<Arc<dyn RobotsChecker>>,
 }
 
 /// Returns true if `url`'s host is permitted by the domain allowlist.
@@ -184,11 +186,17 @@ impl Coordinator {
                     warn!("sink write error: {e}");
                 }
 
-                // Enqueue newly discovered links that pass depth + domain filters.
+                // Enqueue newly discovered links that pass depth + domain + robots filters.
                 if data.depth < self.max_depth {
                     for link in extracted.discovered_links {
                         if !is_allowed_host(&link, &self.allowed_domains) {
                             continue;
+                        }
+                        if let Some(robots) = &self.robots {
+                            if !robots.is_allowed(&link).await {
+                                debug!(url = %link, "robots.txt disallows URL — skipped");
+                                continue;
+                            }
                         }
                         let key = link.as_str().to_string();
                         if seen.insert(key) {

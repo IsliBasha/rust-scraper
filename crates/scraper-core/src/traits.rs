@@ -5,6 +5,17 @@ use crate::{
     RenderOptions, SelectorKind, Url, UrlId, UrlStatus,
 };
 
+/// Checks robots.txt rules for a URL before it is enqueued or fetched.
+///
+/// Implementations cache fetched robots.txt documents per origin
+/// (scheme + host + port). Any fetch or parse failure falls back to permissive
+/// (allow all), following RFC 9309 §2.3.1.1.
+#[async_trait]
+pub trait RobotsChecker: Send + Sync {
+    /// Returns `true` if `url` is permitted by the origin's robots.txt.
+    async fn is_allowed(&self, url: &Url) -> bool;
+}
+
 /// Fetches a URL over HTTP. Implementations own rate limiting, retry, and proxy logic.
 #[async_trait]
 pub trait Fetcher: Send + Sync {

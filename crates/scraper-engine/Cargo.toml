@@ -19,4 +19,5 @@ serde = { workspace = true }
 [dev-dependencies]
 scraper-storage = { path = "../scraper-storage" }
 scraper-fetch-http = { path = "../scraper-fetch-http" }
+scraper-robots = { path = "../scraper-robots" }
 axum = "0.7"

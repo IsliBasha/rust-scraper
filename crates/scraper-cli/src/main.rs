@@ -111,6 +111,7 @@ async fn main() -> anyhow::Result<()> {
                 max_depth: cfg.max_depth,
                 allowed_domains: cfg.allowed_domains.clone(),
                 concurrency: cfg.concurrency,
+                robots: None,
             };
 
             engine.run().await.context("crawl engine error")?;

@@ -7,6 +7,7 @@ members = [
     "crates/scraper-fetch-http",
     "crates/scraper-browser",
     "crates/scraper-storage",
+    "crates/scraper-robots",
     "crates/scraper-engine",
     "crates/scraper-tui",
     "crates/scraper-dashboard",
