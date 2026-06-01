@@ -30,8 +30,8 @@ pub fn extract_jsonld(html: &str) -> BTreeMap<String, Value> {
             if key == "@context" {
                 continue;
             }
-            let field = if key.starts_with('@') {
-                format!("ld_{}", &key[1..])
+            let field = if let Some(rest) = key.strip_prefix('@') {
+                format!("ld_{rest}")
             } else {
                 format!("ld_{key}")
             };

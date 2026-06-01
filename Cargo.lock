@@ -2673,6 +2673,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humantime",
  "scraper-browser",
  "scraper-config",
  "scraper-core",
@@ -2814,6 +2815,7 @@ dependencies = [
  "scraper-core",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
  "tracing",
 ]
