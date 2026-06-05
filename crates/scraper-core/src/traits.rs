@@ -81,6 +81,25 @@ pub trait StateStore: Send + Sync {
     async fn reset_for_recrawl(&self) -> Result<u64, CrawlError> {
         Ok(0)
     }
+
+    /// Atomically mark `done_id` as done and batch-enqueue newly discovered links.
+    ///
+    /// Returns one `UrlId` per entry in `links`, in the same order. Override with a
+    /// single-transaction implementation for significantly better write throughput —
+    /// the default makes N+1 individual round-trips (one `mark_done` + one `enqueue`
+    /// per link), which is correct but slow under high concurrency.
+    async fn mark_done_and_enqueue_batch(
+        &self,
+        done_id: UrlId,
+        links: &[(Url, u32, Option<UrlId>)],
+    ) -> Result<Vec<UrlId>, CrawlError> {
+        self.mark_done(done_id).await?;
+        let mut ids = Vec::with_capacity(links.len());
+        for (url, depth, parent) in links {
+            ids.push(self.enqueue(url, *depth, *parent).await?);
+        }
+        Ok(ids)
+    }
 }
 
 /// Tracks content hashes across crawl runs and records detected changes.

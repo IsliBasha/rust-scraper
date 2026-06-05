@@ -170,6 +170,50 @@ impl StateStore for SqliteStateStore {
             .map_err(|e| CrawlError::storage(e.to_string()))?;
         Ok(changed as u64)
     }
+
+    /// Single-transaction override: marks `done_id` done and inserts all `links` in one
+    /// `BEGIN … COMMIT` block, replacing N+1 individual write transactions with one.
+    async fn mark_done_and_enqueue_batch(
+        &self,
+        done_id: UrlId,
+        links: &[(scraper_core::Url, u32, Option<UrlId>)],
+    ) -> Result<Vec<UrlId>, CrawlError> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn
+            .transaction()
+            .map_err(|e| CrawlError::storage(e.to_string()))?;
+
+        tx.execute(
+            "UPDATE urls SET status = 'done' WHERE id = ?1",
+            params![done_id as i64],
+        )
+        .map_err(|e| CrawlError::storage(e.to_string()))?;
+
+        let mut ids = Vec::with_capacity(links.len());
+        for (url, depth, parent) in links {
+            tx.execute(
+                "INSERT OR IGNORE INTO urls (url, depth, parent) VALUES (?1, ?2, ?3)",
+                params![url.as_str(), depth, parent.map(|v| v as i64)],
+            )
+            .map_err(|e| CrawlError::storage(e.to_string()))?;
+
+            let id: i64 = if tx.changes() > 0 {
+                tx.last_insert_rowid()
+            } else {
+                tx.query_row(
+                    "SELECT id FROM urls WHERE url = ?1",
+                    params![url.as_str()],
+                    |row| row.get(0),
+                )
+                .map_err(|e| CrawlError::storage(e.to_string()))?
+            };
+            ids.push(id as u64);
+        }
+
+        tx.commit()
+            .map_err(|e| CrawlError::storage(e.to_string()))?;
+        Ok(ids)
+    }
 }
 
 fn parse_status(s: &str) -> Result<UrlStatus, CrawlError> {

@@ -171,7 +171,6 @@ impl Coordinator {
 
         match result.outcome {
             Ok(data) => {
-                self.state.mark_done(result.job_id).await?;
                 self.metrics.inc_done();
                 self.metrics.emit(ScrapeEvent::UrlDone {
                     url: data.url.as_str().to_string(),
@@ -231,7 +230,8 @@ impl Coordinator {
                     warn!("sink write error: {e}");
                 }
 
-                // Enqueue newly discovered links that pass depth + domain + robots filters.
+                // Phase 1: async-filter discovered links (domain + seen + robots).
+                let mut to_enqueue: Vec<(Url, u32, Option<UrlId>)> = Vec::new();
                 if data.depth < self.max_depth {
                     for link in extracted.discovered_links {
                         if !is_allowed_host(&link, &self.allowed_domains) {
@@ -243,36 +243,30 @@ impl Coordinator {
                                 continue;
                             }
                         }
-                        let key = link.as_str().to_string();
-                        if seen.insert(key) {
-                            match self
-                                .state
-                                .enqueue(&link, data.depth + 1, Some(result.job_id))
-                                .await
-                            {
-                                Ok(new_id) => {
-                                    self.metrics.inc_pending(1);
-                                    self.metrics.emit(ScrapeEvent::UrlDiscovered {
-                                        url: link.as_str().to_string(),
-                                        depth: data.depth + 1,
-                                    });
-                                    if in_flight.len() < self.concurrency {
-                                        if let Err(e) = self
-                                            .dispatch(
-                                                job_tx,
-                                                in_flight,
-                                                &link,
-                                                new_id,
-                                                data.depth + 1,
-                                            )
-                                            .await
-                                        {
-                                            debug!("dispatch error: {e}");
-                                        }
-                                    }
-                                }
-                                Err(e) => debug!("enqueue error: {e}"),
-                            }
+                        if seen.insert(link.as_str().to_string()) {
+                            to_enqueue.push((link, data.depth + 1, Some(result.job_id)));
+                        }
+                    }
+                }
+
+                // Phase 2: single transaction — mark this page done + enqueue all links.
+                let new_ids = self
+                    .state
+                    .mark_done_and_enqueue_batch(result.job_id, &to_enqueue)
+                    .await?;
+
+                self.metrics.inc_pending(new_ids.len() as u64);
+                for ((link, depth, _), new_id) in to_enqueue.iter().zip(new_ids.iter()) {
+                    self.metrics.emit(ScrapeEvent::UrlDiscovered {
+                        url: link.as_str().to_string(),
+                        depth: *depth,
+                    });
+                    if in_flight.len() < self.concurrency {
+                        if let Err(e) = self
+                            .dispatch(job_tx, in_flight, link, *new_id, *depth)
+                            .await
+                        {
+                            debug!("dispatch error: {e}");
                         }
                     }
                 }
