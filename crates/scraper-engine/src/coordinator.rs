@@ -1,5 +1,8 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+
+use ahash::{AHashSet, AHasher};
 
 use scraper_config::ExtractionConfig;
 use scraper_extractor::{jsonld::extract_jsonld, opengraph::extract_og, pattern::url_matches_pattern};
@@ -53,9 +56,23 @@ fn is_allowed_host(url: &Url, allowed: &[String]) -> bool {
     if host.is_empty() {
         return false;
     }
-    allowed
-        .iter()
-        .any(|d| host == *d || host.ends_with(&format!(".{d}")))
+    allowed.iter().any(|d| {
+        host == d.as_str()
+            || (host.len() > d.len()
+                && host.ends_with(d.as_str())
+                && host.as_bytes()[host.len() - d.len() - 1] == b'.')
+    })
+}
+
+/// Hashes a URL string to a `u64` for cheap deduplication in the `seen` set.
+///
+/// Uses `AHasher` (non-cryptographic, fast) — collision probability is negligible
+/// for realistic crawl sizes. This avoids storing full URL strings in the set,
+/// saving ~100 bytes per discovered URL.
+fn url_hash(url: &str) -> u64 {
+    let mut h = AHasher::default();
+    url.hash(&mut h);
+    h.finish()
 }
 
 impl Coordinator {
@@ -88,12 +105,12 @@ impl Coordinator {
             info!(reclaimed, "reclaimed in-flight URLs from previous session");
         }
 
-        let mut in_flight: HashSet<UrlId> = HashSet::new();
-        let mut seen: HashSet<String> = HashSet::new();
+        let mut in_flight: AHashSet<UrlId> = AHashSet::new();
+        let mut seen: AHashSet<u64> = AHashSet::new();
 
         // Prime the queue from persisted state.
         for p in pending {
-            seen.insert(p.url.as_str().to_string());
+            seen.insert(url_hash(p.url.as_str()));
             if in_flight.len() < self.concurrency {
                 self.dispatch(&job_tx, &mut in_flight, &p.url, p.id, p.depth)
                     .await?;
@@ -131,7 +148,7 @@ impl Coordinator {
     async fn dispatch(
         &self,
         job_tx: &async_channel::Sender<CoordMsg>,
-        in_flight: &mut HashSet<UrlId>,
+        in_flight: &mut AHashSet<UrlId>,
         url: &Url,
         id: UrlId,
         depth: u32,
@@ -162,8 +179,8 @@ impl Coordinator {
         &self,
         result: WorkerResult,
         job_tx: &async_channel::Sender<CoordMsg>,
-        in_flight: &mut HashSet<UrlId>,
-        seen: &mut HashSet<String>,
+        in_flight: &mut AHashSet<UrlId>,
+        seen: &mut AHashSet<u64>,
     ) -> Result<(), CrawlError> {
         in_flight.remove(&result.job_id);
         self.metrics.dec_in_progress();
@@ -198,8 +215,17 @@ impl Coordinator {
                 // Selector-rule fields override auto-extracted ones with the same key.
                 fields.extend(extracted.fields);
 
-                // Compute content hash for delta detection.
-                let content_hash = hash_html(&data.html);
+                // Spawn SHA-256 on the blocking thread pool so the event loop is free
+                // during the subsequent async I/O (delta DB write, sink write).
+                // By the time we await below, the hash is usually already done.
+                let html_for_hash = data.html.clone();
+                let hash_task =
+                    tokio::task::spawn_blocking(move || hash_html(&html_for_hash));
+
+                // Await hash result (likely ready; blocking thread ran concurrently).
+                let content_hash = hash_task
+                    .await
+                    .map_err(|e| CrawlError::extraction(e.to_string()))?;
 
                 // Delta detection: compare against previous crawl's hash.
                 if let Some(ds) = &self.delta_store {
@@ -243,7 +269,7 @@ impl Coordinator {
                                 continue;
                             }
                         }
-                        if seen.insert(link.as_str().to_string()) {
+                        if seen.insert(url_hash(link.as_str())) {
                             to_enqueue.push((link, data.depth + 1, Some(result.job_id)));
                         }
                     }

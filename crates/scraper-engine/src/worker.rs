@@ -72,6 +72,12 @@ pub async fn run_worker(
 }
 
 fn decode_html(body: Bytes) -> String {
-    // Use lossy UTF-8 decoding; charset detection is a future enhancement.
-    String::from_utf8_lossy(&body).into_owned()
+    // For valid UTF-8 (the vast majority of modern web pages), `from_utf8` reuses the
+    // Vec's allocation — no second copy. `from_utf8_lossy().into_owned()` always
+    // allocates a new String even when the bytes were already valid UTF-8.
+    let vec: Vec<u8> = body.into();
+    match String::from_utf8(vec) {
+        Ok(s) => s,
+        Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
+    }
 }
