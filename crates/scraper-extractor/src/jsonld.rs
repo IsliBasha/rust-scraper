@@ -61,7 +61,10 @@ mod tests {
         assert_eq!(fields["ld_type"], Value::String("Product".into()));
         assert_eq!(fields["ld_name"], Value::String("Blue Widget".into()));
         assert_eq!(fields["ld_sku"], Value::String("W-42".into()));
-        assert!(!fields.contains_key("ld_context"), "@context must be dropped");
+        assert!(
+            !fields.contains_key("ld_context"),
+            "@context must be dropped"
+        );
     }
 
     #[test]

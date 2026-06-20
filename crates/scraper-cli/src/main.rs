@@ -72,17 +72,16 @@ async fn main() -> anyhow::Result<()> {
 
             // Always open the delta store for hash tracking across runs.
             let delta_path = format!("{db_path}.delta");
-            let delta_store: Arc<dyn DeltaTracker> = Arc::new(
-                DeltaStore::open(&delta_path).context("failed to open delta DB")?,
-            );
+            let delta_store: Arc<dyn DeltaTracker> =
+                Arc::new(DeltaStore::open(&delta_path).context("failed to open delta DB")?);
 
             let sink: Arc<dyn ResultSink> = match &cfg.output {
                 OutputConfig::JsonLines { path } => Arc::new(
                     JsonLinesSink::create(path).context("failed to open JSON Lines output")?,
                 ),
-                OutputConfig::Sqlite { path } => Arc::new(
-                    SqliteResultSink::open(path).context("failed to open results DB")?,
-                ),
+                OutputConfig::Sqlite { path } => {
+                    Arc::new(SqliteResultSink::open(path).context("failed to open results DB")?)
+                }
                 OutputConfig::Stdout => {
                     Arc::new(SqliteResultSink::open(&db_path).context("failed to open results DB")?)
                 }

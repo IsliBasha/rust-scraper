@@ -140,39 +140,74 @@ mod tests {
     #[test]
     fn disallow_all_blocks_any_path() {
         let body = b"User-agent: *\nDisallow: /\n";
-        assert!(!parse_and_check(body, "testbot", "https://example.com/page"));
+        assert!(!parse_and_check(
+            body,
+            "testbot",
+            "https://example.com/page"
+        ));
         assert!(!parse_and_check(body, "testbot", "https://example.com/"));
     }
 
     #[test]
     fn disallow_specific_path_blocks_only_that_subtree() {
         let body = b"User-agent: *\nDisallow: /secret\n";
-        assert!(!parse_and_check(body, "testbot", "https://example.com/secret"));
-        assert!(!parse_and_check(body, "testbot", "https://example.com/secret/sub"));
-        assert!(parse_and_check(body, "testbot", "https://example.com/public"));
+        assert!(!parse_and_check(
+            body,
+            "testbot",
+            "https://example.com/secret"
+        ));
+        assert!(!parse_and_check(
+            body,
+            "testbot",
+            "https://example.com/secret/sub"
+        ));
+        assert!(parse_and_check(
+            body,
+            "testbot",
+            "https://example.com/public"
+        ));
         assert!(parse_and_check(body, "testbot", "https://example.com/"));
     }
 
     #[test]
     fn empty_robots_txt_allows_everything() {
-        assert!(parse_and_check(b"", "testbot", "https://example.com/anything"));
+        assert!(parse_and_check(
+            b"",
+            "testbot",
+            "https://example.com/anything"
+        ));
         assert!(parse_and_check(b"", "testbot", "https://example.com/"));
     }
 
     #[test]
     fn parse_failure_falls_back_to_permissive() {
-        assert!(parse_and_check(b"\x00\xff\xfe", "testbot", "https://example.com/"));
+        assert!(parse_and_check(
+            b"\x00\xff\xfe",
+            "testbot",
+            "https://example.com/"
+        ));
     }
 
     #[test]
     fn specific_user_agent_overrides_wildcard() {
         // testbot: /bot-only blocked, everything else allowed.
         // *      : everything blocked.
-        let body =
-            b"User-agent: testbot\nDisallow: /bot-only\nUser-agent: *\nDisallow: /\n";
-        assert!(!parse_and_check(body, "testbot", "https://example.com/bot-only"));
-        assert!(parse_and_check(body, "testbot", "https://example.com/public"));
-        assert!(!parse_and_check(body, "otherbot", "https://example.com/public"));
+        let body = b"User-agent: testbot\nDisallow: /bot-only\nUser-agent: *\nDisallow: /\n";
+        assert!(!parse_and_check(
+            body,
+            "testbot",
+            "https://example.com/bot-only"
+        ));
+        assert!(parse_and_check(
+            body,
+            "testbot",
+            "https://example.com/public"
+        ));
+        assert!(!parse_and_check(
+            body,
+            "otherbot",
+            "https://example.com/public"
+        ));
     }
 
     // ── URL helpers ────────────────────────────────────────────────────────────

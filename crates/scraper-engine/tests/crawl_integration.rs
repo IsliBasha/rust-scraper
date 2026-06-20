@@ -4,14 +4,18 @@
 //! conflicts. `flavor = "multi_thread"` is required because the Engine spawns
 //! worker tasks and the MetricsHub snapshot task concurrently.
 
-use std::{collections::HashMap, sync::{Arc, Mutex as StdMutex}, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex as StdMutex},
+    time::Duration,
+};
 
 use async_trait::async_trait;
 use axum::{extract::State, Router};
 use scraper_config::{ExtractionConfig, RuleSet};
 use scraper_core::{
-    ChangeType, CrawlError, DeltaTracker, ExtractedData, ExtractionRule, ResultSink,
-    RobotsChecker, SelectorKind, StateStore, Url,
+    ChangeType, CrawlError, DeltaTracker, ExtractedData, ExtractionRule, ResultSink, RobotsChecker,
+    SelectorKind, StateStore, Url,
 };
 use scraper_engine::Engine;
 use scraper_extractor::CompositeEngine;
@@ -201,16 +205,16 @@ async fn domain_filter_blocks_external_links() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn robots_txt_blocks_disallowed_paths() {
     let (base, server) = start_server(HashMap::from([
-        (
-            "/robots.txt",
-            "User-agent: *\nDisallow: /secret\n",
-        ),
+        ("/robots.txt", "User-agent: *\nDisallow: /secret\n"),
         (
             "/",
             r#"<html><body><a href="/secret">s</a><a href="/allowed">a</a></body></html>"#,
         ),
         ("/allowed", "<html><body>safe leaf</body></html>"),
-        ("/secret", "<html><body>should never be crawled</body></html>"),
+        (
+            "/secret",
+            "<html><body>should never be crawled</body></html>",
+        ),
     ]))
     .await;
 
@@ -236,17 +240,15 @@ async fn robots_txt_blocks_disallowed_paths() {
 /// JSON-LD and Open Graph fields are auto-extracted on every page.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn extraction_rules_and_auto_extract_populate_fields() {
-    let (base, server) = start_server(HashMap::from([
-        (
-            "/",
-            r#"<html><head>
+    let (base, server) = start_server(HashMap::from([(
+        "/",
+        r#"<html><head>
                 <script type="application/ld+json">
                 {"@type":"Product","name":"Blue Widget"}
                 </script>
                 <meta property="og:title" content="Blue Widget OG">
             </head><body><h1>Blue Widget</h1></body></html>"#,
-        ),
-    ]))
+    )]))
     .await;
 
     let extraction_config = ExtractionConfig {
@@ -372,8 +374,16 @@ async fn delta_detection_records_new_and_modified_between_runs() {
     .unwrap();
 
     let after_run1 = delta.query_changes().unwrap();
-    assert_eq!(after_run1.len(), 1, "run 1 should produce exactly one New event");
-    assert_eq!(after_run1[0].change_type, ChangeType::New, "first visit is New");
+    assert_eq!(
+        after_run1.len(),
+        1,
+        "run 1 should produce exactly one New event"
+    );
+    assert_eq!(
+        after_run1[0].change_type,
+        ChangeType::New,
+        "first visit is New"
+    );
 
     // Change the page content before run 2.
     *content.lock().unwrap() =

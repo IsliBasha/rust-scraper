@@ -5,10 +5,12 @@ use std::sync::Arc;
 use ahash::{AHashSet, AHasher};
 
 use scraper_config::ExtractionConfig;
-use scraper_extractor::{jsonld::extract_jsonld, opengraph::extract_og, pattern::url_matches_pattern};
 use scraper_core::{
     CrawlError, CrawlJob, DeltaTracker, ExtractedData, ExtractionRule, Fetcher, ResultSink,
     RobotsChecker, SelectorEngine, StateStore, Url, UrlId, UrlStatus,
+};
+use scraper_extractor::{
+    jsonld::extract_jsonld, opengraph::extract_og, pattern::url_matches_pattern,
 };
 use scraper_metrics::{MetricsHub, ScrapeEvent};
 use scraper_storage::hash_html;
@@ -206,7 +208,9 @@ impl Coordinator {
                     .collect();
 
                 // Run selector extraction with the matched rules.
-                let extracted = self.selector.extract(&data.html, &data.url, &matching_rules)?;
+                let extracted = self
+                    .selector
+                    .extract(&data.html, &data.url, &matching_rules)?;
 
                 // Auto-extract JSON-LD and Open Graph fields (lower priority).
                 let mut fields = BTreeMap::new();
@@ -219,8 +223,7 @@ impl Coordinator {
                 // during the subsequent async I/O (delta DB write, sink write).
                 // By the time we await below, the hash is usually already done.
                 let html_for_hash = data.html.clone();
-                let hash_task =
-                    tokio::task::spawn_blocking(move || hash_html(&html_for_hash));
+                let hash_task = tokio::task::spawn_blocking(move || hash_html(&html_for_hash));
 
                 // Await hash result (likely ready; blocking thread ran concurrently).
                 let content_hash = hash_task

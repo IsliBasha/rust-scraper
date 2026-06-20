@@ -91,9 +91,7 @@ impl DeltaStore {
                 "new" => ChangeType::New,
                 "modified" => ChangeType::Modified,
                 "removed" => ChangeType::Removed,
-                other => {
-                    return Err(CrawlError::storage(format!("unknown change_type: {other}")))
-                }
+                other => return Err(CrawlError::storage(format!("unknown change_type: {other}"))),
             };
             out.push(ChangeEvent {
                 url,
@@ -304,9 +302,7 @@ mod tests {
         let removed = store.detect_removed(crawl_start).await.unwrap();
 
         assert_eq!(removed.len(), 2);
-        assert!(removed
-            .iter()
-            .all(|e| e.change_type == ChangeType::Removed));
+        assert!(removed.iter().all(|e| e.change_type == ChangeType::Removed));
         assert!(removed[0].old_hash.is_some());
     }
 

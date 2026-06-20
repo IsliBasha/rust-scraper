@@ -74,8 +74,14 @@ mod tests {
     #[test]
     fn no_wildcard_is_substring_match() {
         assert!(url_matches_pattern("https://example.com/page", "/page"));
-        assert!(url_matches_pattern("https://example.com/page", "example.com"));
-        assert!(!url_matches_pattern("https://example.com/page", "other.com"));
+        assert!(url_matches_pattern(
+            "https://example.com/page",
+            "example.com"
+        ));
+        assert!(!url_matches_pattern(
+            "https://example.com/page",
+            "other.com"
+        ));
     }
 
     #[test]
@@ -85,5 +91,4 @@ mod tests {
         assert!(url_matches_pattern("https://example.com/foo/bar", pattern));
         assert!(!url_matches_pattern("https://other.com/foo", pattern));
     }
-
 }

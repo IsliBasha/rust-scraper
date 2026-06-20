@@ -2,7 +2,9 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use scraper_config::ExtractionConfig;
-use scraper_core::{CrawlError, DeltaTracker, Fetcher, ResultSink, RobotsChecker, SelectorEngine, StateStore};
+use scraper_core::{
+    CrawlError, DeltaTracker, Fetcher, ResultSink, RobotsChecker, SelectorEngine, StateStore,
+};
 use scraper_metrics::MetricsHub;
 use tracing::info;
 

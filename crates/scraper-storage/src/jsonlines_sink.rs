@@ -30,8 +30,7 @@ impl JsonLinesSink {
 #[async_trait]
 impl ResultSink for JsonLinesSink {
     async fn write(&self, data: &ExtractedData) -> Result<(), CrawlError> {
-        let line =
-            serde_json::to_string(data).map_err(|e| CrawlError::storage(e.to_string()))?;
+        let line = serde_json::to_string(data).map_err(|e| CrawlError::storage(e.to_string()))?;
         let mut guard = self.writer.lock().unwrap();
         writeln!(guard, "{line}").map_err(|e| CrawlError::storage(e.to_string()))?;
         Ok(())
@@ -80,10 +79,7 @@ mod tests {
         let sink = JsonLinesSink::create(&path).unwrap();
 
         for i in 0..3 {
-            let rec = make_record(
-                &format!("https://example.com/{i}"),
-                &format!("Title {i}"),
-            );
+            let rec = make_record(&format!("https://example.com/{i}"), &format!("Title {i}"));
             sink.write(&rec).await.unwrap();
         }
         sink.flush().await.unwrap();
